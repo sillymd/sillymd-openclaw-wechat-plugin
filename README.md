@@ -49,7 +49,7 @@ python install.py
 ```
 
 **必要配置:**
-- `api_key`: 从 SillyMD 获取的 API Key
+- `api_key`: 从 SillyMD 获取的 API Key - https://websocket.sillymd.com
 - `wechat.owner_id`: 企微 owner 的 ID（接收抄送消息）
 
 **自动获取的配置（无需手动设置）:**
