@@ -28,6 +28,33 @@
 
 ## 快速开始
 
+### 方式一：npm 安装（推荐）
+
+```bash
+# 全局安装
+npm install -g sillymd-wechat
+
+# 启动插件
+sillymd-wechat start
+
+# 查看帮助
+sillymd-wechat help
+```
+
+### 方式二：手动安装
+
+```bash
+# 克隆仓库
+git clone https://github.com/sillymd/sillymd-openclaw-wechat-plugin.git
+cd sillymd-openclaw-wechat-plugin
+
+# 安装依赖
+python install.py
+
+# 启动插件
+python wecom_to_openclaw_bridge.py
+```
+
 ### 1. 安装依赖
 
 ```bash

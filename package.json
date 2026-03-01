@@ -1,0 +1,39 @@
+{
+  "name": "sillymd-wechat",
+  "version": "1.0.0",
+  "description": "SillyMD OpenClaw-WeChat Plugin - 企业微信与OpenClaw双向消息桥接",
+  "main": "index.js",
+  "bin": {
+    "sillymd-wechat": "./bin/cli.js"
+  },
+  "scripts": {
+    "start": "node bin/cli.js",
+    "install": "node install.js"
+  },
+  "keywords": [
+    "wechat",
+    "wecom",
+    "openclaw",
+    "sillymd",
+    "bridge",
+    "plugin"
+  ],
+  "author": "SillyMD",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sillymd/sillymd-openclaw-wechat-plugin.git"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "*.py",
+    "*.md",
+    "*.json",
+    "bin/",
+    "config.json.example",
+    ".env.example"
+  ],
+  "preferGlobal": true
+}
