@@ -30,10 +30,10 @@
   },
   "files": [
     "*.py",
+    "*.js",
     "*.md",
     "*.json",
     "bin/",
-    "install.js",
     "config.json.example",
     ".env.example"
   ],
