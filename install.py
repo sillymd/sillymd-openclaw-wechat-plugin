@@ -23,7 +23,7 @@ def check_python_version():
     if version.major < 3 or (version.major == 3 and version.minor < 8):
         print(f"错误: 需要 Python 3.8+，当前版本: {version.major}.{version.minor}")
         return False
-    print(f"✓ Python 版本: {version.major}.{version.minor}.{version.micro}")
+    print(f"[OK] Python 版本: {version.major}.{version.minor}.{version.micro}")
     return True
 
 def install_from_wheels():
@@ -31,12 +31,12 @@ def install_from_wheels():
     wheels_dir = Path(__file__).parent / "wheels"
 
     if not wheels_dir.exists():
-        print("✗ 未找到 wheels 目录，跳过离线安装")
+        print("[FAIL] 未找到 wheels 目录，跳过离线安装")
         return False
 
     wheels = list(wheels_dir.glob("*.whl"))
     if not wheels:
-        print("✗ wheels 目录为空")
+        print("[FAIL] wheels 目录为空")
         return False
 
     print(f"\n正在从 wheels 安装依赖 ({len(wheels)} 个包)...")
@@ -58,14 +58,14 @@ def install_from_wheels():
             )
 
             if result.returncode == 0:
-                print("✓")
+                print("[OK]")
                 success_count += 1
             else:
-                print("✗")
+                print("[FAIL]")
                 print(f"  错误: {result.stderr[:100]}")
                 fail_count += 1
         except Exception as e:
-            print(f"✗ ({e})")
+            print(f"[FAIL] ({e})")
             fail_count += 1
 
     print("-" * 60)
@@ -93,7 +93,7 @@ def install_other_dependencies():
                 capture_output=True,
                 timeout=60
             )
-            print("✓" if result.returncode == 0 else "跳过")
+            print("[OK]" if result.returncode == 0 else "跳过")
         except Exception as e:
             print(f"跳过 ({e})")
 
@@ -116,9 +116,9 @@ def check_models():
         full_path = Path(__file__).parent / model_path
         if full_path.exists():
             size_mb = full_path.stat().st_size / (1024 * 1024)
-            print(f"✓ {model_name}: {size_mb:.1f} MB")
+            print(f"[OK] {model_name}: {size_mb:.1f} MB")
         else:
-            print(f"✗ {model_name}: 未找到 ({model_path})")
+            print(f"[FAIL] {model_name}: 未找到 ({model_path})")
             all_exist = False
 
     print("-" * 60)
@@ -137,7 +137,7 @@ def create_env_file():
         print(f"\n创建 .env 文件...")
         import shutil
         shutil.copy(env_example, env_file)
-        print("✓ 请编辑 .env 文件填入你的配置")
+        print("[OK] 请编辑 .env 文件填入你的配置")
     else:
         print(f"\n警告: 未找到 .env.example 文件")
 
@@ -162,7 +162,7 @@ def update_openclaw_identity():
             break
 
     if not identity_file:
-        print("⚠ 未找到 IDENTITY.md 文件，跳过配置更新")
+        print("[WARN] 未找到 IDENTITY.md 文件，跳过配置更新")
         print("  请手动将以下内容添加到 IDENTITY.md:")
         print("  - 文件发送工具使用说明")
         return False
@@ -173,7 +173,7 @@ def update_openclaw_identity():
 
         # 检查是否已包含文件发送说明
         if "openclaw_send_file.py" in content:
-            print(f"✓ IDENTITY.md 已包含文件发送配置")
+            print(f"[OK] IDENTITY.md 已包含文件发送配置")
             return True
 
         # 添加文件发送工具说明
@@ -207,12 +207,12 @@ python "D:\\\\OpenClaw\\\\skills\\\\sillymd\\\\openclaw_send_file.py" "D:\\\\Ope
         with open(identity_file, 'a', encoding='utf-8') as f:
             f.write(file_send_section)
 
-        print(f"✓ 已更新 {identity_file}")
+        print(f"[OK] 已更新 {identity_file}")
         print("  添加了文件发送工具使用说明")
         return True
 
     except Exception as e:
-        print(f"✗ 更新 IDENTITY.md 失败: {e}")
+        print(f"[FAIL] 更新 IDENTITY.md 失败: {e}")
         return False
 
 def test_imports():
@@ -230,17 +230,17 @@ def test_imports():
     for module_name, display_name in modules:
         try:
             __import__(module_name)
-            print(f"✓ {display_name}")
+            print(f"[OK] {display_name}")
         except ImportError:
-            print(f"✗ {display_name}")
+            print(f"[FAIL] {display_name}")
             all_ok = False
 
     # 测试 Sherpa-ONNX
     try:
         from asr_sherpa_onnx import SherpaOnnxASR
-        print("✓ Sherpa-ONNX ASR")
+        print("[OK] Sherpa-ONNX ASR")
     except Exception as e:
-        print(f"✗ Sherpa-ONNX ASR: {e}")
+        print(f"[FAIL] Sherpa-ONNX ASR: {e}")
         all_ok = False
 
     print("-" * 60)
@@ -278,12 +278,12 @@ def main():
     print("=" * 60)
 
     if wheels_ok and models_ok and imports_ok:
-        print("\n✓ 所有组件安装成功!")
+        print("\n[OK] 所有组件安装成功!")
         print("\n下一步:")
         print("1. 编辑 .env 文件填入你的配置")
         print("2. 运行: python wecom_to_openclaw_bridge.py")
     else:
-        print("\n⚠ 部分组件可能未正确安装，请检查上方日志")
+        print("\n[WARN] 部分组件可能未正确安装，请检查上方日志")
         if not models_ok:
             print("\n模型文件缺失，请确认 models/ 目录完整")
 
