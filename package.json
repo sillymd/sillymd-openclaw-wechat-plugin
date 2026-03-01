@@ -4,7 +4,8 @@
   "description": "SillyMD OpenClaw-WeChat Plugin - 企业微信与OpenClaw双向消息桥接",
   "main": "index.js",
   "bin": {
-    "sillymd-wechat": "./bin/cli.js"
+    "sillymdwechat": "bin/cli.js",
+    "sillymd-wechat": "bin/cli.js"
   },
   "scripts": {
     "start": "node bin/cli.js",
@@ -22,7 +23,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sillymd/sillymd-openclaw-wechat-plugin.git"
+    "url": "git+https://github.com/sillymd/sillymd-openclaw-wechat-plugin.git"
   },
   "engines": {
     "node": ">=14.0.0"
