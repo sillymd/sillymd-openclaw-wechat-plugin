@@ -1,0 +1,6 @@
+{
+  "api_key": "YOUR_SILLYMD_API_KEY",
+  "wechat": {
+    "owner_id": "YOUR_WECHAT_OWNER_ID"
+  }
+}

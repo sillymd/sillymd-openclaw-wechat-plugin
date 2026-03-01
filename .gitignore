@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Local Config
+.env
+wecom_config.local.json
+config_server.local.json
+config.json
+
+# Claude
+.claude/
+.bridge_pid
+
+# Runtime
+file/
+*.db
+*.pid
+.processed_responses
+
+# Temporary
+tmp/
+temp/
+models/
+wheels/
+*.pt
+releases/
+whisper_local/
