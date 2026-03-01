@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-SillyMD 企业微信通道插件安装脚本
-支持离线安装所有依赖
+SillyMD WeCom Channel Plugin Installer
+Supports offline installation of all dependencies
 """
 
 import os
@@ -10,36 +11,45 @@ import subprocess
 import glob
 from pathlib import Path
 
+# Fix Windows terminal encoding
+if sys.platform == 'win32':
+    import ctypes
+    try:
+        ctypes.windll.kernel32.SetConsoleCP(65001)
+        ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+    except:
+        pass
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
 def print_banner():
     print("=" * 60)
-    print("SillyMD 企业微信通道插件 - 安装程序")
-    print("SillyMD WeCom Channel Plugin Installer")
+    print("SillyMD WeCom Channel Plugin - Installer")
     print("=" * 60)
     print()
 
 def check_python_version():
-    """检查 Python 版本"""
+    """Check Python version"""
     version = sys.version_info
     if version.major < 3 or (version.major == 3 and version.minor < 8):
-        print(f"错误: 需要 Python 3.8+，当前版本: {version.major}.{version.minor}")
+        print(f"[FAIL] Python 3.8+ required, current: {version.major}.{version.minor}")
         return False
-    print(f"[OK] Python 版本: {version.major}.{version.minor}.{version.micro}")
+    print(f"[OK] Python version: {version.major}.{version.minor}.{version.micro}")
     return True
 
 def install_from_wheels():
-    """从 wheels 目录安装依赖"""
+    """Install dependencies from wheels directory"""
     wheels_dir = Path(__file__).parent / "wheels"
 
     if not wheels_dir.exists():
-        print("[FAIL] 未找到 wheels 目录，跳过离线安装")
+        print("[FAIL] wheels directory not found, skipping offline install")
         return False
 
     wheels = list(wheels_dir.glob("*.whl"))
     if not wheels:
-        print("[FAIL] wheels 目录为空")
+        print("[FAIL] wheels directory is empty")
         return False
 
-    print(f"\n正在从 wheels 安装依赖 ({len(wheels)} 个包)...")
+    print(f"\nInstalling from wheels ({len(wheels)} packages)...")
     print("-" * 60)
 
     success_count = 0
@@ -47,7 +57,7 @@ def install_from_wheels():
 
     for wheel in sorted(wheels):
         wheel_name = wheel.name
-        print(f"安装: {wheel_name[:50]}...", end=" ")
+        print(f"Installing: {wheel_name[:50]}...", end=" ")
 
         try:
             result = subprocess.run(
@@ -62,22 +72,21 @@ def install_from_wheels():
                 success_count += 1
             else:
                 print("[FAIL]")
-                print(f"  错误: {result.stderr[:100]}")
+                print(f"  Error: {result.stderr[:100]}")
                 fail_count += 1
         except Exception as e:
             print(f"[FAIL] ({e})")
             fail_count += 1
 
     print("-" * 60)
-    print(f"安装完成: 成功 {success_count} 个, 失败 {fail_count} 个")
+    print(f"Installation complete: {success_count} success, {fail_count} failed")
     return fail_count == 0
 
 def install_other_dependencies():
-    """安装其他依赖（通过 pip）"""
-    print("\n安装其他依赖...")
+    """Install other dependencies via pip"""
+    print("\nInstalling other dependencies...")
     print("-" * 60)
 
-    # 基础依赖（通常已有）
     basic_deps = [
         "requests",
         "websockets",
@@ -86,29 +95,29 @@ def install_other_dependencies():
     ]
 
     for dep in basic_deps:
-        print(f"安装: {dep}...", end=" ")
+        print(f"Installing: {dep}...", end=" ")
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "install", dep, "-q"],
                 capture_output=True,
                 timeout=60
             )
-            print("[OK]" if result.returncode == 0 else "跳过")
+            print("[OK]" if result.returncode == 0 else "Skip")
         except Exception as e:
-            print(f"跳过 ({e})")
+            print(f"Skip ({e})")
 
     print("-" * 60)
 
 def check_models():
-    """检查模型文件"""
-    print("\n检查模型文件...")
+    """Check model files"""
+    print("\nChecking model files...")
     print("-" * 60)
 
     models_dir = Path(__file__).parent / "models"
 
     required_models = [
-        ("models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/model.int8.onnx", "Sherpa-ONNX 中文模型"),
-        ("models/tiny.pt", "Whisper tiny 模型"),
+        ("models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/model.int8.onnx", "Sherpa-ONNX Chinese Model"),
+        ("models/tiny.pt", "Whisper tiny Model"),
     ]
 
     all_exist = True
@@ -118,35 +127,34 @@ def check_models():
             size_mb = full_path.stat().st_size / (1024 * 1024)
             print(f"[OK] {model_name}: {size_mb:.1f} MB")
         else:
-            print(f"[FAIL] {model_name}: 未找到 ({model_path})")
+            print(f"[FAIL] {model_name}: not found ({model_path})")
             all_exist = False
 
     print("-" * 60)
     return all_exist
 
 def create_env_file():
-    """创建环境变量文件"""
+    """Create environment variable file"""
     env_file = Path(__file__).parent / ".env"
     env_example = Path(__file__).parent / ".env.example"
 
     if env_file.exists():
-        print(f"\n.env 文件已存在，跳过创建")
+        print(f"\n.env file already exists, skipping creation")
         return
 
     if env_example.exists():
-        print(f"\n创建 .env 文件...")
+        print(f"\nCreating .env file...")
         import shutil
         shutil.copy(env_example, env_file)
-        print("[OK] 请编辑 .env 文件填入你的配置")
+        print("[OK] Please edit .env file with your configuration")
     else:
-        print(f"\n警告: 未找到 .env.example 文件")
+        print(f"\n[WARN] .env.example file not found")
 
 def update_openclaw_identity():
-    """更新 OpenClaw 的 IDENTITY.md 文件，添加文件发送工具说明"""
-    print("\n更新 OpenClaw 配置...")
+    """Update OpenClaw IDENTITY.md file with file sending tool instructions"""
+    print("\nUpdating OpenClaw configuration...")
     print("-" * 60)
 
-    # 查找 IDENTITY.md 文件
     home_dir = Path.home()
     possible_paths = [
         home_dir / ".openclaw" / "IDENTITY.md",
@@ -162,62 +170,58 @@ def update_openclaw_identity():
             break
 
     if not identity_file:
-        print("[WARN] 未找到 IDENTITY.md 文件，跳过配置更新")
-        print("  请手动将以下内容添加到 IDENTITY.md:")
-        print("  - 文件发送工具使用说明")
+        print("[WARN] IDENTITY.md not found, skipping configuration update")
+        print("  Please manually add file sending tool instructions to IDENTITY.md")
         return False
 
     try:
-        # 读取现有内容
         content = identity_file.read_text(encoding='utf-8')
 
-        # 检查是否已包含文件发送说明
         if "openclaw_send_file.py" in content:
-            print(f"[OK] IDENTITY.md 已包含文件发送配置")
+            print(f"[OK] IDENTITY.md already contains file sending configuration")
             return True
 
-        # 添加文件发送工具说明
         file_send_section = """
+
 ---
 
-## 工具使用说明
+## Tool Usage Guide
 
-### 发送文件到企微
+### Sending Files to WeCom
 
-当你收到媒体文件（图片、视频、音频、文件）并需要发送给用户时，请使用以下脚本：
+When you receive media files (images, videos, audio, documents) and need to send them to users, use the following script:
 
 ```bash
-python "D:\\\\OpenClaw\\\\skills\\\\sillymd\\\\openclaw_send_file.py" "<文件路径>" "<显示名称>"
+python "D:\\OpenClaw\\skills\\sillymd\\openclaw_send_file.py" "<file_path>" "<display_name>"
 ```
 
-**示例：**
+**Example:**
 ```bash
-python "D:\\\\OpenClaw\\\\skills\\\\sillymd\\\\openclaw_send_file.py" "D:\\\\OpenClaw\\\\skills\\\\sillymd\\\\file\\\\image.jpg" "图片"
+python "D:\\OpenClaw\\skills\\sillymd\\openclaw_send_file.py" "D:\\OpenClaw\\skills\\sillymd\\file\\image.jpg" "Image"
 ```
 
-**注意：**
-- 文件路径必须是完整绝对路径
-- 显示名称是用户在企微中看到的文件名
-- 支持类型：图片(.jpg/.png/.gif)、视频(.mp4)、音频(.wav/.mp3)、文件(.pdf/.doc等)
+**Note:**
+- File path must be a complete absolute path
+- Display name is what users see in WeCom
+- Supported types: images (.jpg/.png/.gif), videos (.mp4), audio (.wav/.mp3), documents (.pdf/.doc etc.)
 
-当用户说"发送文件"、"发给我"、"传给我"等意图时，请主动使用此脚本发送文件。
+When users say "send file", "send to me", "transfer to me" or similar intent, actively use this script to send files.
 """
 
-        # 追加到文件末尾
         with open(identity_file, 'a', encoding='utf-8') as f:
             f.write(file_send_section)
 
-        print(f"[OK] 已更新 {identity_file}")
-        print("  添加了文件发送工具使用说明")
+        print(f"[OK] Updated {identity_file}")
+        print("  Added file sending tool instructions")
         return True
 
     except Exception as e:
-        print(f"[FAIL] 更新 IDENTITY.md 失败: {e}")
+        print(f"[FAIL] Failed to update IDENTITY.md: {e}")
         return False
 
 def test_imports():
-    """测试关键导入"""
-    print("\n测试关键模块导入...")
+    """Test key module imports"""
+    print("\nTesting key module imports...")
     print("-" * 60)
 
     modules = [
@@ -235,7 +239,6 @@ def test_imports():
             print(f"[FAIL] {display_name}")
             all_ok = False
 
-    # 测试 Sherpa-ONNX
     try:
         from asr_sherpa_onnx import SherpaOnnxASR
         print("[OK] Sherpa-ONNX ASR")
@@ -249,43 +252,37 @@ def test_imports():
 def main():
     print_banner()
 
-    # 检查 Python 版本
     if not check_python_version():
         sys.exit(1)
 
-    print("\n开始安装...")
+    print("\nStarting installation...")
     print("=" * 60)
 
-    # 安装依赖
     wheels_ok = install_from_wheels()
     install_other_dependencies()
 
-    # 检查模型
     models_ok = check_models()
 
-    # 创建 .env 文件
     create_env_file()
 
-    # 更新 OpenClaw IDENTITY.md
     update_openclaw_identity()
 
-    # 测试导入
     imports_ok = test_imports()
 
-    # 总结
     print("\n" + "=" * 60)
-    print("安装完成!")
+    print("Installation Complete!")
     print("=" * 60)
 
     if wheels_ok and models_ok and imports_ok:
-        print("\n[OK] 所有组件安装成功!")
-        print("\n下一步:")
-        print("1. 编辑 .env 文件填入你的配置")
-        print("2. 运行: python wecom_to_openclaw_bridge.py")
+        print("\n[OK] All components installed successfully!")
+        print("\nNext steps:")
+        print("1. Edit .env file with your configuration")
+        print("2. Edit config.json with your API key and owner_id")
+        print("3. Run: python wecom_to_openclaw_bridge.py")
     else:
-        print("\n[WARN] 部分组件可能未正确安装，请检查上方日志")
+        print("\n[WARN] Some components may not be installed correctly, please check logs above")
         if not models_ok:
-            print("\n模型文件缺失，请确认 models/ 目录完整")
+            print("\nModel files missing, please ensure models/ directory is complete")
 
     print()
 
