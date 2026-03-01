@@ -6,6 +6,8 @@
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+**仓库镜像:** [GitHub](https://github.com/sillymd/sillymd-openclaw-wechat-plugin) | [Gitee](https://gitee.com/sillymd/sillymd-openclaw-wechat-plugin)
+
 ## 功能特性
 
 - **双向消息同步**: 企业微信 ↔ OpenClaw 实时消息互通
@@ -58,8 +60,30 @@ python install.py
 ### 3. 启动插件
 
 ```bash
-python wecom_to_openclaw_bridge.py
+python wecom_to_openclaw-wechat-plugin.py
 ```
+
+## 下载安装
+
+### 从 GitHub 下载（推荐）
+
+```bash
+git clone https://github.com/sillymd/sillymd-openclaw-wechat-plugin.git
+cd sillymd-openclaw-wechat-plugin
+```
+
+从 [GitHub Releases](https://github.com/sillymd/sillymd-openclaw-wechat-plugin/releases) 下载：
+- `models-v26030101.tar.gz` - 语音识别模型 (~282MB)
+- `wheels-v26030101.tar.gz` - 离线依赖包 (~356MB)
+
+### 从 Gitee 下载（国内镜像）
+
+```bash
+git clone https://gitee.com/sillymd/sillymd-openclaw-wechat-plugin.git
+cd sillymd-openclaw-wechat-plugin
+```
+
+> **注意**：Gitee 免费版附件限制 100MB，模型和依赖包需从 GitHub Releases 下载。
 
 ## 目录结构
 
