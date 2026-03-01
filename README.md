@@ -79,7 +79,6 @@ python wecom_to_openclaw_bridge.py
 │   └── tiny.pt                   # Whisper tiny 模型 (~73MB)
 ├── wheels/                        # 离线依赖包 (~364MB)
 ├── whisper_local/                 # Whisper 本地实现
-├── tmp/                           # 临时文件/测试文件
 ├── logs/                          # 日志目录
 ├── file/                          # 接收的媒体文件
 ├── config.json                    # 主配置文件（简化配置）
