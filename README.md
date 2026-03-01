@@ -1,6 +1,10 @@
-# OpenClaw 企微桥接插件 V26030101
+# SillyMD OpenClaw-WeChat Plugin
 
 企业微信与 OpenClaw 的双向消息桥接插件，支持本地语音识别和多媒体消息。
+
+[![Release](https://img.shields.io/github/v/release/sillymd/sillymd-openclaw-wechat-plugin)](https://github.com/sillymd/sillymd-openclaw-wechat-plugin/releases)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## 功能特性
 
@@ -93,28 +97,56 @@ python wecom_to_openclaw_bridge.py
 
 语音文件会自动从 AMR 格式转换为 WAV 格式进行处理。
 
-## 配置详解
+## 配置说明
 
-### config_server.json
+### 配置文件
+
+插件使用极简配置，只需创建 `config.json` 文件：
 
 ```json
 {
-  "base_url": "https://your-sillymd-server.com",
-  "tenant_id": "your-tenant-id",
-  "device_name": "OpenClaw"
+  "api_key": "YOUR_SILLYMD_API_KEY",
+  "wechat": {
+    "owner_id": "YOUR_WECHAT_OWNER_ID"
+  }
 }
 ```
 
-### wecom_config.json
+### 配置项说明
 
-```json
-{
-  "corp_id": "your-corp-id",
-  "agent_id": "your-agent-id",
-  "secret": "your-secret",
-  "token": "your-token",
-  "encoding_aes_key": "your-aes-key"
-}
+| 配置项 | 必填 | 说明 |
+|--------|------|------|
+| `api_key` | ✅ | 从 SillyMD 控制台获取的 API Key |
+| `wechat.owner_id` | ✅ | 企业微信所有者 ID（接收抄送消息的目标用户）|
+
+### 自动获取的配置
+
+以下配置无需手动设置，插件启动时会自动从后端 API 获取并存储在内存中：
+
+| 配置项 | 来源 | 用途 |
+|--------|------|------|
+| `tenant_id` | API 获取 | 租户唯一标识 |
+| `device_id` | WebSocket 绑定 | 设备标识 |
+| `jwt_token` | API 获取 | WebSocket 认证（如使用 API Key 直接连接则不需要）|
+| `token` | API 获取 | 企业微信消息加解密 Token |
+| `encoding_aes_key` | API 获取 | 企业微信消息加解密密钥 |
+| `corp_id` | API 获取 | 企业微信 CorpID |
+| `corp_secret` | API 获取 | 企业微信应用密钥 |
+
+**安全说明**：所有敏感配置（token, aes_key, corp_secret 等）均从后端动态获取，**不会写入本地配置文件**，仅存储在内存中使用，避免配置文件泄露导致的安全风险。
+
+### 环境变量（可选）
+
+可通过环境变量覆盖配置：
+
+```bash
+# Windows PowerShell
+$env:SILLYMD_API_KEY="your_api_key"
+$env:WECOM_OWNER_ID="YourName"
+
+# Linux/Mac
+export SILLYMD_API_KEY=your_api_key
+export WECOM_OWNER_ID=YourName
 ```
 
 ## 常见问题
