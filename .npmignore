@@ -1,0 +1,33 @@
+# Development files
+.git/
+.gitignore
+.claude/
+
+# Build artifacts
+*.bundle
+*.tar.gz
+*.log
+
+# Directories not needed for npm
+models/
+wheels/
+releases/
+whisper_local/
+tmp/
+temp/
+logs/
+file/
+__pycache__/
+
+# Config files with sensitive data
+config.json
+.env
+wecom_config.local.json
+config_server.local.json
+
+# Large files
+*.pt
+*.onnx
+*.db
+*.pid
+.processed_responses
