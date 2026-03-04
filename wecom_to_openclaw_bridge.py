@@ -610,6 +610,19 @@ class WeComToOpenClawBridge:
                 logger.warning(f"尝试转发空内容，跳过: sender={sender}")
                 return {"success": False, "error": "Empty content"}
 
+            # 动态获取最新 session（每次发送消息时获取最新的）
+            agent_name = self.openclaw_config.get('agent', 'main')
+            dynamic_session_id, dynamic_session_file = find_openclaw_session(agent_name)
+
+            if not dynamic_session_id or not dynamic_session_file:
+                logger.error("无法获取 OpenClaw session，请检查 OpenClaw 是否正在运行")
+                return {"success": False, "error": "No session available"}
+
+            # 更新实例变量（供响应监控使用）
+            self.openclaw_session_id = dynamic_session_id
+            self.openclaw_session_file = dynamic_session_file
+            logger.info(f"使用最新 session: {self.openclaw_session_id}")
+
             # 在消息内容中添加[sender]标识
             message_text = f"[{sender}] {content}"
 
@@ -1363,6 +1376,19 @@ class WeComToOpenClawBridge:
             if not content:
                 logger.warning(f"尝试转发空内容（媒体消息），跳过: sender={sender}")
                 return {"success": False, "error": "Empty content"}
+
+            # 动态获取最新 session（每次发送消息时获取最新的）
+            agent_name = self.openclaw_config.get('agent', 'main')
+            dynamic_session_id, dynamic_session_file = find_openclaw_session(agent_name)
+
+            if not dynamic_session_id or not dynamic_session_file:
+                logger.error("无法获取 OpenClaw session，请检查 OpenClaw 是否正在运行")
+                return {"success": False, "error": "No session available"}
+
+            # 更新实例变量
+            self.openclaw_session_id = dynamic_session_id
+            self.openclaw_session_file = dynamic_session_file
+            logger.info(f"[Media] 使用最新 session: {self.openclaw_session_id}")
 
             # 在消息内容中添加[sender]标识
             message_text = f"[{sender}] {content}"
