@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 服务器端连接器 - WebSocket 实时推送
-连接到 webhook.sillymd.com 的 WebSocket 服务
+连接到 websocket.sillymd.com 的 WebSocket 服务
 """
 import asyncio
 import json
@@ -38,7 +38,7 @@ class ServerConnector:
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://webhook.sillymd.com",
+        base_url: str = "https://websocket.sillymd.com",
         device_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
         jwt_token: Optional[str] = None
@@ -836,7 +836,7 @@ class ServerConnector:
 
 async def create_connector(
     api_key: str,
-    base_url: str = "https://webhook.sillymd.com",
+    base_url: str = "https://websocket.sillymd.com",
     device_id: Optional[str] = None,
     tenant_id: Optional[str] = None
 ) -> ServerConnector:

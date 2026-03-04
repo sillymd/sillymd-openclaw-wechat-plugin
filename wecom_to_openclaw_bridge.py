@@ -30,8 +30,9 @@ def acquire_lock() -> bool:
                 if sys.platform == 'win32':
                     import ctypes
                     kernel32 = ctypes.windll.kernel32
-                    handle = kernel32.OpenProcess(1, False, old_pid)
-                    if handle:
+                    PROCESS_QUERY_INFORMATION = 0x0400
+                    handle = kernel32.OpenProcess(PROCESS_QUERY_INFORMATION, False, old_pid)
+                    if handle != 0:
                         kernel32.CloseHandle(handle)
                         print(f"桥接器已在运行 (PID: {old_pid})，请勿重复启动")
                         return False
@@ -344,6 +345,7 @@ class WeComToOpenClawBridge:
         self.last_sender = None  # 用于记录最后的发送者以便回复
         self._message_lock = asyncio.Lock()  # 用于防止并发处理同一条消息
         self._pending_responses = {}  # 存储待处理响应的预期目标用户 {content_hash: (target_user, timestamp)}
+        self._processed_content_hashes = {}  # 内容级别去重 {content_hash: timestamp}
 
         # 持久化去重 - 使用文件记录已处理的响应ID，跨进程共享
         self._dedup_file = Path(__file__).parent / ".processed_responses"
@@ -677,9 +679,8 @@ class WeComToOpenClawBridge:
         response_lock = asyncio.Lock()
         # 正在处理的响应ID（防止发送过程中重复）
         processing_ids = set()
-        # 内容级别去重（防止相同内容多次发送）
-        # 内容级别去重 - 存储 {hash: timestamp}
-        processed_content_hashes = {}
+        # 使用实例变量进行内容级别去重（防止相同内容多次发送）
+        processed_content_hashes = self._processed_content_hashes
 
         while True:
             try:
@@ -730,16 +731,21 @@ class WeComToOpenClawBridge:
 
                                     # 使用锁保护整个处理流程
                                     async with response_lock:
-                                        # 再次检查（获取锁后）
-                                        if msg_id in self.processed_message_ids or msg_id in processing_ids:
-                                            logger.debug(f"响应 {msg_id[:16]}... 已在处理中，跳过")
+                                        # 检查消息ID是否已处理
+                                        if msg_id in self.processed_message_ids:
+                                            logger.info(f"消息ID已处理，跳过: {msg_id[:16]}...")
                                             continue
 
-                                        # 内容级别去重（同一内容10秒内只发送一次）
+                                        # 检查消息ID是否正在处理中
+                                        if msg_id in processing_ids:
+                                            logger.info(f"消息ID正在处理中，跳过: {msg_id[:16]}...")
+                                            continue
+
+                                        # 内容级别去重 - 立即检查并标记为已处理
                                         current_time = time.time()
                                         if content_hash in processed_content_hashes:
-                                            logger.warning(f"[DUPLICATE BLOCKED] 相同内容已在10秒内发送过，跳过: {text_content[:50]}...")
-                                            # 仍然标记为已处理，防止再次检查
+                                            logger.warning(f"[DUPLICATE BLOCKED] 相同内容已发送过，跳过: {text_content[:50]}...")
+                                            # 标记为已处理，防止再次检查
                                             self.processed_message_ids.add(msg_id)
                                             self._save_processed_id(msg_id)
                                             continue
@@ -752,7 +758,7 @@ class WeComToOpenClawBridge:
                                             self.processed_message_ids.add(msg_id)
                                             self._save_processed_id(msg_id)
 
-                                            # 记录内容哈希和时间戳
+                                            # 立即记录内容哈希（发送前就标记，防止并发）
                                             processed_content_hashes[content_hash] = current_time
                                             logger.info(f"[HASH RECORDED] {content_hash[:16]}... for: {text_content[:30]}...")
 
