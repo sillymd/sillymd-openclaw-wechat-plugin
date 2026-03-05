@@ -9,11 +9,29 @@ import os
 import sys
 import subprocess
 import glob
-import tarfile
 import urllib.request
 from pathlib import Path
 
 SILLYHUB_URL = "https://resource.sillymd.com/sillyhub"
+
+# Files to download from SillyHub
+FILES_TO_DOWNLOAD = [
+    # Models
+    "models/tiny.pt",
+    "models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/am.mvn",
+    "models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/config.yaml",
+    "models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/configuration.json",
+    "models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/model.int8.onnx",
+    "models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/tokens.txt",
+    # Wheels
+    "wheels/kaldi_native_fbank-1.22.3-cp38-cp38-win_amd64.whl",
+    "wheels/librosa-0.10.1-py3-none-any.whl",
+    "wheels/numpy-1.24.4-cp38-cp38-win_amd64.whl",
+    "wheels/onnxruntime-1.16.3-cp38-cp38-win_amd64.whl",
+    "wheels/sympy-1.12-py3-none-any.whl",
+    "wheels/torch-2.0.1-cp38-cp38-win_amd64.whl",
+    "wheels/torchaudio-2.0.2-cp38-cp38-win_amd64.whl",
+]
 
 # Fix Windows terminal encoding
 if sys.platform == 'win32':
@@ -43,48 +61,47 @@ def check_python_version():
 def download_from_sillyhub():
     """Download models and wheels from SillyHub"""
     base_dir = Path(__file__).parent
-    models_dir = base_dir / "models"
-    wheels_dir = base_dir / "wheels"
 
     # Check if already exists
-    if models_dir.exists() and wheels_dir.exists():
-        models_ok = (models_dir / "sherpa-onnx").exists() or (models_dir / "tiny.pt").exists()
-        wheels_ok = list(wheels_dir.glob("*.whl"))
-        if models_ok and wheels_ok:
-            print("[SKIP] models/ and wheels/ already exist")
-            return True
+    models_dir = base_dir / "models"
+    wheels_dir = base_dir / "wheels"
+    all_exist = True
+    for rel_path in FILES_TO_DOWNLOAD:
+        target_path = base_dir / rel_path
+        if not target_path.exists():
+            all_exist = False
+            break
 
-    print("\nDownloading models and wheels from SillyHub...")
+    if all_exist:
+        print("[SKIP] All files already exist")
+        return True
+
+    print("\nDownloading from SillyHub...")
     print("-" * 60)
 
-    # Download models
-    models_archive = base_dir / "models.tar.gz"
-    print("Downloading models...")
-    try:
-        urllib.request.urlretrieve(f"{SILLYHUB_URL}/models.tar.gz", models_archive)
-        print("Extracting models...")
-        with tarfile.open(models_archive, "r:gz") as tar:
-            tar.extractall(base_dir)
-        os.remove(models_archive)
-        print("[OK] models/")
-    except Exception as e:
-        print(f"[FAIL] models: {e}")
+    success_count = 0
+    fail_count = 0
 
-    # Download wheels
-    wheels_archive = base_dir / "wheels.tar.gz"
-    print("Downloading wheels...")
-    try:
-        urllib.request.urlretrieve(f"{SILLYHUB_URL}/wheels.tar.gz", wheels_archive)
-        print("Extracting wheels...")
-        with tarfile.open(wheels_archive, "r:gz") as tar:
-            tar.extractall(base_dir)
-        os.remove(wheels_archive)
-        print("[OK] wheels/")
-    except Exception as e:
-        print(f"[FAIL] wheels: {e}")
+    for rel_path in FILES_TO_DOWNLOAD:
+        target_path = base_dir / rel_path
+        if target_path.exists():
+            continue
+
+        url = f"{SILLYHUB_URL}/{rel_path}"
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        print(f"Downloading {rel_path}...", end=" ")
+        try:
+            urllib.request.urlretrieve(url, target_path)
+            print("[OK]")
+            success_count += 1
+        except Exception as e:
+            print(f"[FAIL] {e}")
+            fail_count += 1
 
     print("-" * 60)
-    return True
+    print(f"Download complete: {success_count} success, {fail_count} failed")
+    return fail_count == 0
 
 def install_from_wheels():
     """Install dependencies from wheels directory"""
