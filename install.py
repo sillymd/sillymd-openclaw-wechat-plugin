@@ -26,6 +26,15 @@ if sys.platform == 'win32':
         pass
     os.environ['PYTHONIOENCODING'] = 'utf-8'
 
+# Safe input function that handles encoding
+def safe_input(prompt=""):
+    """Safe input function that works with Chinese characters"""
+    try:
+        return input(prompt)
+    except (EOFError, UnicodeDecodeError):
+        # Fallback: try with ascii
+        return input(prompt.encode('ascii', 'replace').decode('ascii'))
+
 def print_banner():
     print("=" * 60)
     print("SillyMD WeCom Channel Plugin - Installer")
@@ -84,7 +93,7 @@ def ask_install_location():
     print("2. 自定义安装位置")
 
     while True:
-        choice = input("\n请输入选项 (1/2): ").strip()
+        choice = safe_input("\n请输入选项 (1/2): ").strip()
         if choice in ['1', '2']:
             return choice
         print("请输入 1 或 2")
@@ -97,7 +106,7 @@ def ask_custom_location():
         return None
 
     print("\n请输入自定义安装路径 (直接回车取消):")
-    path = input("路径: ").strip()
+    path = safe_input("路径: ").strip()
     if path:
         return Path(path)
     return None
@@ -114,7 +123,7 @@ def install_to_openclaw(skills_dir):
     # Create symlink or copy
     if target_dir.exists():
         print(f"[INFO] 目录已存在: {target_dir}")
-        response = input("是否覆盖? (y/n): ").strip().lower()
+        response = safe_input("是否覆盖? (y/n): ").strip().lower()
         if response == 'y':
             if target_dir.is_symlink():
                 target_dir.unlink()
@@ -220,7 +229,7 @@ def setup_health_check(openclaw_dir: Path, plugin_dir: Path):
 
         if check_result.returncode == 0:
             print(f"[INFO] 健康检测任务已存在: {task_name}")
-            response = input("是否重新创建? (y/n): ").strip().lower()
+            response = safe_input("是否重新创建? (y/n): ").strip().lower()
             if response != 'y':
                 return True
 
@@ -763,11 +772,11 @@ def run_check_mode():
             # Ask for new values
             print("Enter new values (press Enter to keep current):")
 
-            new_api_key = input(f"API Key [{'*' * 20 if api_key else ''}]: ").strip()
+            new_api_key = safe_input(f"API Key [{'*' * 20 if api_key else ''}]: ").strip()
             if new_api_key:
                 config['api_key'] = new_api_key
 
-            new_owner_id = input(f"Owner ID [{owner_id}]: ").strip()
+            new_owner_id = safe_input(f"Owner ID [{owner_id}]: ").strip()
             if new_owner_id:
                 if 'wechat' not in config:
                     config['wechat'] = {}
@@ -891,7 +900,7 @@ def main():
             else:
                 print("\n是否配置健康检测? (自动检测桥接器是否运行，未运行则自动启动)")
                 print("建议: 开启以确保桥接器持续运行")
-                response = input("配置健康检测 (y/n)? 默认 y: ").strip().lower()
+                response = safe_input("配置健康检测 (y/n)? 默认 y: ").strip().lower()
                 if response == '' or response == 'y':
                     setup_health_check(openclaw_dir, installed_path)
 
@@ -903,7 +912,7 @@ def main():
         else:
             print("\n是否将 npm 全局路径添加到系统 PATH?")
             print("这样可以全局使用 sillymd-wechat 命令")
-            response = input("添加 PATH (y/n)? 默认 y: ").strip().lower()
+            response = safe_input("添加 PATH (y/n)? 默认 y: ").strip().lower()
             if response == '' or response == 'y':
                 add_npm_to_path()
 
