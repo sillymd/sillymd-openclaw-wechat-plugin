@@ -476,8 +476,8 @@ def download_from_sillyhub():
 
     has_local_files = (local_models.exists() or local_wheels.exists())
 
-    if has_local_files:
-        # Use local files - just check if they're complete
+    if has_local_files and not SKIP_INTERACTIVE:
+        # Use local files - just check if they're complete (only in interactive mode)
         print("[INFO] Using local models/wheels directories")
         files_to_download = []
 
@@ -501,8 +501,8 @@ def download_from_sillyhub():
             print(f"\nUsing {len(files_to_download)} local files...")
             return True
 
-    # Download from list files
-    print("\nDownloading from SillyHub...")
+    # Download from list files (always in --skip mode or when no local files)
+    print("\nDownloading models and wheels from SillyHub...")
     print("=" * 60)
 
     download_models = download_from_list("models_list.md", base_dir)

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Post-install script for sillymd-wechat
- * Runs Python install.py
+ * Runs Python install.py with --skip for non-interactive install
  */
 
 const { execSync } = require('child_process');
@@ -11,7 +11,8 @@ console.log('[INFO] Running SillyMD WeChat Plugin installer...');
 
 try {
   const installScript = path.join(__dirname, 'install.py');
-  execSync(`python "${installScript}"`, {
+  // Use --skip for non-interactive install (auto-download models/wheels, use defaults)
+  execSync(`python "${installScript}" --skip`, {
     stdio: 'inherit',
     cwd: __dirname
   });
