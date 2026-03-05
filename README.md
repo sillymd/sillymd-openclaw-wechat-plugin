@@ -99,9 +99,11 @@ git clone https://github.com/sillymd/sillymd-openclaw-wechat-plugin.git
 cd sillymd-openclaw-wechat-plugin
 ```
 
-从 [GitHub Releases](https://github.com/sillymd/sillymd-openclaw-wechat-plugin/releases) 下载：
-- `models-v26030101.tar.gz` - 语音识别模型 (~282MB)
-- `wheels-v26030101.tar.gz` - 离线依赖包 (~356MB)
+从 [SillyHub](https://resource.sillymd.com/sillyhub) 下载（推荐）：
+- `models.tar.gz` - 语音识别模型
+- `wheels.tar.gz` - 离线依赖包
+
+> 安装脚本会自动从 SillyHub 下载这些文件，无需手动下载。
 
 ### 从 Gitee 下载（国内镜像）
 
@@ -110,7 +112,6 @@ git clone https://gitee.com/sillymd/sillymd-openclaw-wechat-plugin.git
 cd sillymd-openclaw-wechat-plugin
 ```
 
-> **注意**：Gitee 免费版附件限制 100MB，模型和依赖包需从 GitHub Releases 下载。
 
 ## 目录结构
 
@@ -125,10 +126,10 @@ cd sillymd-openclaw-wechat-plugin
 ├── openclaw_session.py            # OpenClaw 会话管理
 ├── openclaw_send_file.py          # 文件发送工具
 ├── logging_config.py              # 日志配置
-├── models/                        # 语音识别模型
-│   ├── sherpa-onnx/ASR/          # Sherpa-ONNX 模型 (~234MB)
-│   └── tiny.pt                   # Whisper tiny 模型 (~73MB)
-├── wheels/                        # 离线依赖包 (~364MB)
+├── models/                        # 语音识别模型（安装时自动下载）
+│   ├── sherpa-onnx/ASR/          # Sherpa-ONNX 模型
+│   └── tiny.pt                   # Whisper tiny 模型
+├── wheels/                        # 离线依赖包（安装时自动下载）
 ├── whisper_local/                 # Whisper 本地实现
 ├── logs/                          # 日志目录
 ├── file/                          # 接收的媒体文件

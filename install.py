@@ -9,7 +9,11 @@ import os
 import sys
 import subprocess
 import glob
+import tarfile
+import urllib.request
 from pathlib import Path
+
+SILLYHUB_URL = "https://resource.sillymd.com/sillyhub"
 
 # Fix Windows terminal encoding
 if sys.platform == 'win32':
@@ -34,6 +38,52 @@ def check_python_version():
         print(f"[FAIL] Python 3.8+ required, current: {version.major}.{version.minor}")
         return False
     print(f"[OK] Python version: {version.major}.{version.minor}.{version.micro}")
+    return True
+
+def download_from_sillyhub():
+    """Download models and wheels from SillyHub"""
+    base_dir = Path(__file__).parent
+    models_dir = base_dir / "models"
+    wheels_dir = base_dir / "wheels"
+
+    # Check if already exists
+    if models_dir.exists() and wheels_dir.exists():
+        models_ok = (models_dir / "sherpa-onnx").exists() or (models_dir / "tiny.pt").exists()
+        wheels_ok = list(wheels_dir.glob("*.whl"))
+        if models_ok and wheels_ok:
+            print("[SKIP] models/ and wheels/ already exist")
+            return True
+
+    print("\nDownloading models and wheels from SillyHub...")
+    print("-" * 60)
+
+    # Download models
+    models_archive = base_dir / "models.tar.gz"
+    print("Downloading models...")
+    try:
+        urllib.request.urlretrieve(f"{SILLYHUB_URL}/models.tar.gz", models_archive)
+        print("Extracting models...")
+        with tarfile.open(models_archive, "r:gz") as tar:
+            tar.extractall(base_dir)
+        os.remove(models_archive)
+        print("[OK] models/")
+    except Exception as e:
+        print(f"[FAIL] models: {e}")
+
+    # Download wheels
+    wheels_archive = base_dir / "wheels.tar.gz"
+    print("Downloading wheels...")
+    try:
+        urllib.request.urlretrieve(f"{SILLYHUB_URL}/wheels.tar.gz", wheels_archive)
+        print("Extracting wheels...")
+        with tarfile.open(wheels_archive, "r:gz") as tar:
+            tar.extractall(base_dir)
+        os.remove(wheels_archive)
+        print("[OK] wheels/")
+    except Exception as e:
+        print(f"[FAIL] wheels: {e}")
+
+    print("-" * 60)
     return True
 
 def install_from_wheels():
@@ -257,6 +307,9 @@ def main():
 
     print("\nStarting installation...")
     print("=" * 60)
+
+    # Download models and wheels from SillyHub if not present
+    download_from_sillyhub()
 
     wheels_ok = install_from_wheels()
     install_other_dependencies()
