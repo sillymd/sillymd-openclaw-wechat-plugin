@@ -182,6 +182,61 @@ def register_to_openclaw_channel(openclaw_dir, plugin_dir):
         print(f"[FAIL] 注册 Channel 失败: {e}")
         return False
 
+def add_npm_to_path():
+    """Add npm global path to system PATH"""
+    if sys.platform != 'win32':
+        print("[SKIP] 仅 Windows 支持自动配置 PATH")
+        return False
+
+    print("\n配置 npm 全局命令...")
+    print("-" * 60)
+
+    # Get npm global path
+    try:
+        result = subprocess.run(
+            ['npm', 'config', 'get', 'prefix'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        npm_prefix = result.stdout.strip()
+        npm_path = Path(npm_prefix) / "npm"
+
+        if not npm_path.exists():
+            print(f"[WARN] npm 全局路径不存在: {npm_path}")
+            return False
+
+        print(f"[INFO] npm 全局路径: {npm_path}")
+
+        # Check current PATH
+        current_path = os.environ.get('PATH', '')
+        if str(npm_path) in current_path:
+            print("[OK] npm 路径已在 PATH 中")
+            return True
+
+        # Add to PATH (using setx for permanent effect)
+        new_path = f"{current_path};{npm_path}"
+
+        # Use setx to update system PATH
+        try:
+            subprocess.run(
+                ['setx', 'PATH', new_path],
+                check=True,
+                capture_output=True
+            )
+            print("[OK] 已添加 npm 到系统 PATH")
+            print("  请重启终端使更改生效")
+            return True
+        except Exception as e:
+            print(f"[WARN] 自动配置 PATH 失败: {e}")
+            print(f"  请手动添加以下路径到系统 PATH:")
+            print(f"  {npm_path}")
+            return False
+
+    except Exception as e:
+        print(f"[WARN] 获取 npm 路径失败: {e}")
+        return False
+
 def check_python_version():
     """Check Python version"""
     version = sys.version_info
@@ -509,6 +564,14 @@ def main():
     # Register to OpenClaw if installed to OpenClaw skills
     if installed_path and openclaw_dir:
         register_to_openclaw_channel(openclaw_dir, installed_path)
+
+    # Configure npm PATH
+    if sys.platform == 'win32':
+        print("\n是否将 npm 全局路径添加到系统 PATH?")
+        print("这样可以全局使用 sillymd-wechat 命令")
+        response = input("添加 PATH (y/n)? 默认 y: ").strip().lower()
+        if response == '' or response == 'y':
+            add_npm_to_path()
 
     print("\n" + "=" * 60)
     print("Installation Complete!")
