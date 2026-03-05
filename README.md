@@ -44,11 +44,15 @@ sillymd-wechat help
 ### 方式二：手动安装
 
 ```bash
-# 克隆仓库
+# 克隆仓库 (GitHub)
 git clone https://github.com/sillymd/sillymd-openclaw-wechat-plugin.git
 cd sillymd-openclaw-wechat-plugin
 
-# 安装依赖
+# 或者从 Gitee 克隆（国内推荐）
+git clone https://gitee.com/sillymd/sillymd-openclaw-wechat-plugin.git
+cd sillymd-openclaw-wechat-plugin
+
+# 安装依赖（自动从 SillyHub 下载 models 和 wheels）
 python install.py
 
 # 启动插件
@@ -92,26 +96,16 @@ python wecom_to_openclaw-wechat-plugin.py
 
 ## 下载安装
 
-### 从 GitHub 下载（推荐）
-
 ```bash
+# 克隆仓库
 git clone https://github.com/sillymd/sillymd-openclaw-wechat-plugin.git
-cd sillymd-openclaw-wechat-plugin
-```
-
-从 [SillyHub](https://resource.sillymd.com/sillyhub) 下载（推荐）：
-- `models.tar.gz` - 语音识别模型
-- `wheels.tar.gz` - 离线依赖包
-
-> 安装脚本会自动从 SillyHub 下载这些文件，无需手动下载。
-
-### 从 Gitee 下载（国内镜像）
-
-```bash
+# 或从 Gitee 克隆（国内推荐）
 git clone https://gitee.com/sillymd/sillymd-openclaw-wechat-plugin.git
+
 cd sillymd-openclaw-wechat-plugin
 ```
 
+> **注意**: wheels 目录中的离线依赖包仅适用于 **Python 3.8**。如需其他 Python 版本，请删除 wheels 目录后运行 `python install.py` 自动从网络安装。
 
 ## 目录结构
 
