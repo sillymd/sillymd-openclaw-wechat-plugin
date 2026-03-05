@@ -1,6 +1,6 @@
 {
   "name": "sillymd-wechat",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "SillyMD OpenClaw-WeChat Plugin - 企业微信与OpenClaw双向消息桥接",
   "main": "index.js",
   "bin": {
