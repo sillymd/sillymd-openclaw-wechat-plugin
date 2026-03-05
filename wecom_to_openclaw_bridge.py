@@ -3,12 +3,20 @@
 企业微信 <-> OpenClaw 双向消息桥接器
 接收 SillyMD 消息并推送到 OpenClaw session，同时监控 agent 响应并发送回企微
 """
+import sys
+
+# 早期日志输出（在 logging 配置前使用）
+def early_log(msg: str):
+    """早期日志输出，在 logging 配置前使用"""
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sys.stderr.write(f"[{timestamp}] {msg}\n")
+
 import asyncio
 import hashlib
 import json
 import logging
 import os
-import sys
 import time
 import uuid
 from datetime import datetime
@@ -34,13 +42,13 @@ def acquire_lock() -> bool:
                     handle = kernel32.OpenProcess(PROCESS_QUERY_INFORMATION, False, old_pid)
                     if handle != 0:
                         kernel32.CloseHandle(handle)
-                        print(f"桥接器已在运行 (PID: {old_pid})，请勿重复启动")
+                        early_log(f"桥接器已在运行 (PID: {old_pid})，请勿重复启动")
                         return False
                 else:
                     # Unix/Linux/Mac
                     try:
                         os.kill(old_pid, 0)
-                        print(f"桥接器已在运行 (PID: {old_pid})，请勿重复启动")
+                        early_log(f"桥接器已在运行 (PID: {old_pid})，请勿重复启动")
                         return False
                     except ProcessLookupError:
                         pass  # 进程不存在
@@ -56,7 +64,7 @@ def acquire_lock() -> bool:
             f.write(str(os.getpid()))
         return True
     except Exception as e:
-        print(f"获取进程锁失败: {e}")
+        early_log(f"获取进程锁失败: {e}")
         return False
 
 def release_lock():
