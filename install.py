@@ -619,8 +619,16 @@ def create_env_file():
     if env_example.exists():
         print(f"\nCreating .env file...")
         import shutil
-        shutil.copy(env_example, env_file)
-        print("[OK] Please edit .env file with your configuration")
+        try:
+            shutil.copy(env_example, env_file)
+            print("[OK] Please edit .env file with your configuration")
+        except PermissionError:
+            print("[WARN] Cannot create .env file (permission denied), skipping")
+        except OSError as e:
+            if e.errno == 13:  # Permission denied
+                print("[WARN] Cannot create .env file (permission denied), skipping")
+            else:
+                print(f"[WARN] Cannot create .env file: {e}, skipping")
     else:
         print(f"\n[WARN] .env.example file not found")
 
