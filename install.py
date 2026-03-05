@@ -216,8 +216,6 @@ def update_openclaw_identity():
     possible_paths = [
         home_dir / ".openclaw" / "IDENTITY.md",
         home_dir / "OpenClaw" / "IDENTITY.md",
-        Path("D:/OpenClaw/IDENTITY.md"),
-        Path("C:/OpenClaw/IDENTITY.md"),
     ]
 
     identity_file = None
@@ -249,15 +247,16 @@ def update_openclaw_identity():
 When you receive media files (images, videos, audio, documents) and need to send them to users, use the following script:
 
 ```bash
-python "D:\\OpenClaw\\skills\\sillymd\\openclaw_send_file.py" "<file_path>" "<display_name>"
+python "<path_to_openclaw_send_file.py>" "<file_path>" "<display_name>"
 ```
 
 **Example:**
 ```bash
-python "D:\\OpenClaw\\skills\\sillymd\\openclaw_send_file.py" "D:\\OpenClaw\\skills\\sillymd\\file\\image.jpg" "Image"
+python "<path_to_openclaw_send_file.py>" "D:\\path\\to\\file.jpg" "Image"
 ```
 
 **Note:**
+- Replace `<path_to_openclaw_send_file.py>` with the actual path to openclaw_send_file.py in your installation directory
 - File path must be a complete absolute path
 - Display name is what users see in WeCom
 - Supported types: images (.jpg/.png/.gif), videos (.mp4), audio (.wav/.mp3), documents (.pdf/.doc etc.)

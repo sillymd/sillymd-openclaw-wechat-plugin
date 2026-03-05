@@ -242,11 +242,17 @@ def load_openclaw_config(server_config) -> dict:
             config['session_id'] = detected_id
             config['session_file'] = detected_file
         else:
-            # 最后的默认值（向后兼容）
-            config['session_id'] = config.get('session_id', 'ffb310cd-a64a-4c55-a6dd-37b696f9a9c0')
-            config['session_file'] = config.get('session_file',
-                r"C:\Users\HughWang\.openclaw\agents\main\sessions\ffb310cd-a64a-4c55-a6dd-37b696f9a9c0.jsonl")
-            logger.warning(f"使用默认 session 配置: {config['session_id']}")
+            # 使用 Path.home() 构建默认路径
+            home_dir = Path.home()
+            default_session_dir = home_dir / ".openclaw" / "agents" / "main" / "sessions"
+            config['session_id'] = config.get('session_id', '')
+            config['session_file'] = config.get('session_file', '')
+            if not config['session_id'] or not config['session_file']:
+                logger.error("未在配置中找到 OpenClaw session_id 和 session_file")
+                logger.error(f"请在 config.json 中配置 OpenClaw session，或确保 OpenClaw 正在运行")
+                logger.error(f"OpenClaw session 目录: {default_session_dir}")
+            else:
+                logger.warning(f"使用默认 session 配置: {config['session_id']}")
 
     return config
 
@@ -308,7 +314,10 @@ class WeComToOpenClawBridge:
             raise ValueError("缺少企业微信配置")
 
         # 合并企微配置（保留本地 owner_id）
-        owner_id = self.server_config.wechat.get('owner_id', 'HughWang') if self.server_config.wechat else 'HughWang'
+        owner_id = self.server_config.wechat.get('owner_id') if self.server_config.wechat else None
+        if not owner_id:
+            logger.error("未配置 wechat.owner_id，请在 config.json 中配置")
+            raise ValueError("缺少 wechat.owner_id 配置")
         self.wechat_config = {**wechat_info, 'owner_id': owner_id}
         logger.info("企业微信配置已获取（仅内存存储）")
 
