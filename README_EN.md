@@ -30,14 +30,14 @@ A bidirectional message bridge between WeCom (Enterprise WeChat) and OpenClaw, s
 ### Method 1: npm Installation (Recommended)
 
 ```bash
-# Install globally
+# Install globally (auto-downloads models and wheels)
 npm install -g sillymd-wechat
+
+# Configure (interactive)
+sillymd-wechat check
 
 # Start the plugin
 sillymd-wechat start
-
-# View help
-sillymd-wechat help
 ```
 
 ### Method 2: Manual Installation
@@ -51,23 +51,26 @@ cd sillymd-openclaw-wechat-plugin
 git clone https://gitee.com/sillymd/sillymd-openclaw-wechat-plugin.git
 cd sillymd-openclaw-wechat-plugin
 
-# Install dependencies (auto-download models and wheels from SillyHub)
-python install.py
+# Install (auto-downloads models and wheels)
+python install.py --skip
+
+# Configure
+sillymd-wechat check
 
 # Start the plugin
 python wecom_to_openclaw_bridge.py
 ```
 
-### 1. Install Dependencies
+### Configure the Plugin
+
+Edit `config.json`, or use interactive configuration:
 
 ```bash
-# Use offline wheels (recommended)
-python install.py
+# Interactive configuration (can run separately)
+sillymd-wechat check
+
+# Or manually edit config.json
 ```
-
-### 2. Configure the Plugin
-
-Edit `config.json`, only two items required:
 
 ```json
 {
@@ -87,9 +90,13 @@ Edit `config.json`, only two items required:
 - Tenant ID / Device ID - Auto-obtained after WebSocket connection
 - WeCom config (token, corp_id, encoding_aes_key, etc.) - Auto-fetched from backend
 
-### 3. Start the Plugin
+### Start the Plugin
 
 ```bash
+# Using npm command
+sillymd-wechat start
+
+# Or run Python directly
 python wecom_to_openclaw_bridge.py
 ```
 
@@ -102,9 +109,12 @@ git clone https://github.com/sillymd/sillymd-openclaw-wechat-plugin.git
 git clone https://gitee.com/sillymd/sillymd-openclaw-wechat-plugin.git
 
 cd sillymd-openclaw-wechat-plugin
+
+# Install (auto-downloads models and wheels)
+python install.py --skip
 ```
 
-> **Note**: The offline wheels are for **Python 3.8** only. For other Python versions, delete the wheels directory and run `python install.py` to auto-install from network.
+> **Note**: Installation will download models and dependencies from https://resource.sillymd.com/sillyhub/
 
 ## Directory Structure
 
@@ -115,21 +125,23 @@ cd sillymd-openclaw-wechat-plugin
 ├── config_manager.py              # Configuration management
 ├── wechat_crypto.py               # WeChat message encryption/decryption
 ├── voice_recognition.py           # Voice recognition module
-├── asr_sherpa_onnx.py             # Sherpa-ONNX ASR
+├── asr_sherpa_onnx.py            # Sherpa-ONNX ASR
 ├── openclaw_session.py            # OpenClaw session management
 ├── openclaw_send_file.py          # File sending utility
 ├── logging_config.py              # Logging configuration
+├── models_list.md                 # Model file list (auto-downloaded)
+├── wheels_list.md                 # Dependencies list (auto-downloaded)
 ├── models/                        # Voice recognition models (auto-downloaded)
-│   ├── sherpa-onnx/ASR/          # Sherpa-ONNX model
-│   └── tiny.pt                   # Whisper tiny model
-├── wheels/                        # Offline dependencies (auto-downloaded)
+│   └── sherpa-onnx/ASR/          # Sherpa-ONNX model
+├── wheels/                        # Python dependencies (auto-downloaded)
 ├── whisper_local/                 # Whisper local implementation
 ├── logs/                          # Log directory
 ├── file/                          # Received media files
 ├── config.json                    # Main config file
 ├── install.py                     # Installation script
+├── bin/cli.js                    # npm CLI entry
 ├── PLUGIN.md                      # Plugin documentation
-├── README.md                      # This file
+├── README.md                      # Chinese version
 └── README_EN.md                   # English version
 ```
 

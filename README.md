@@ -30,14 +30,14 @@
 ### 方式一：npm 安装（推荐）
 
 ```bash
-# 全局安装
+# 全局安装（会自动下载 models 和 wheels）
 npm install -g sillymd-wechat
+
+# 配置（交互式）
+sillymd-wechat check
 
 # 启动插件
 sillymd-wechat start
-
-# 查看帮助
-sillymd-wechat help
 ```
 
 ### 方式二：手动安装
@@ -51,23 +51,26 @@ cd sillymd-openclaw-wechat-plugin
 git clone https://gitee.com/sillymd/sillymd-openclaw-wechat-plugin.git
 cd sillymd-openclaw-wechat-plugin
 
-# 安装依赖（自动从 SillyHub 下载 models 和 wheels）
-python install.py
+# 安装依赖（自动下载 models 和 wheels）
+python install.py --skip
+
+# 配置
+sillymd-wechat check
 
 # 启动插件
 python wecom_to_openclaw_bridge.py
 ```
 
-### 1. 安装依赖
+### 配置插件
+
+编辑 `config.json`，或使用交互式配置：
 
 ```bash
-# 使用离线依赖包（推荐）
-python install.py
+# 交互式配置（可单独运行）
+sillymd-wechat check
+
+# 或手动编辑 config.json
 ```
-
-### 2. 配置插件
-
-编辑 `config.json`，仅需配置两项：
 
 ```json
 {
@@ -87,10 +90,14 @@ python install.py
 - Tenant ID / Device ID - WebSocket 连接后自动获取
 - 企微配置（token, corp_id, encoding_aes_key 等）- 从后端自动获取
 
-### 3. 启动插件
+### 启动插件
 
 ```bash
-python wecom_to_openclaw-wechat-plugin.py
+# 使用 npm 命令
+sillymd-wechat start
+
+# 或直接运行 Python
+python wecom_to_openclaw_bridge.py
 ```
 
 ## 下载安装
@@ -102,9 +109,12 @@ git clone https://github.com/sillymd/sillymd-openclaw-wechat-plugin.git
 git clone https://gitee.com/sillymd/sillymd-openclaw-wechat-plugin.git
 
 cd sillymd-openclaw-wechat-plugin
+
+# 安装（会自动下载 models 和 wheels）
+python install.py --skip
 ```
 
-> **注意**: wheels 目录中的离线依赖包仅适用于 **Python 3.8**。如需其他 Python 版本，请删除 wheels 目录后运行 `python install.py` 自动从网络安装。
+> **注意**: 安装时会从 https://resource.sillymd.com/sillyhub/ 下载模型和依赖文件。
 
 ## 目录结构
 
@@ -119,15 +129,17 @@ cd sillymd-openclaw-wechat-plugin
 ├── openclaw_session.py            # OpenClaw 会话管理
 ├── openclaw_send_file.py          # 文件发送工具
 ├── logging_config.py              # 日志配置
+├── models_list.md                 # 模型文件清单（安装时自动下载）
+├── wheels_list.md                 # 依赖包清单（安装时自动下载）
 ├── models/                        # 语音识别模型（安装时自动下载）
-│   ├── sherpa-onnx/ASR/          # Sherpa-ONNX 模型
-│   └── tiny.pt                   # Whisper tiny 模型
-├── wheels/                        # 离线依赖包（安装时自动下载）
+│   └── sherpa-onnx/ASR/          # Sherpa-ONNX 模型
+├── wheels/                        # Python 依赖包（安装时自动下载）
 ├── whisper_local/                 # Whisper 本地实现
 ├── logs/                          # 日志目录
 ├── file/                          # 接收的媒体文件
-├── config.json                    # 主配置文件（简化配置）
+├── config.json                    # 主配置文件
 ├── install.py                     # 安装脚本
+├── bin/cli.js                     # npm CLI 入口
 ├── PLUGIN.md                      # 插件说明
 └── README.md                      # 本文件
 ```
