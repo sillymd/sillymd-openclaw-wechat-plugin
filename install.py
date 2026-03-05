@@ -10,6 +10,8 @@ import sys
 import subprocess
 import glob
 import urllib.request
+import shutil
+import json
 from pathlib import Path
 
 SILLYHUB_URL = "https://resource.sillymd.com/sillyhub"
@@ -32,6 +34,153 @@ def print_banner():
     print("SillyMD WeCom Channel Plugin - Installer")
     print("=" * 60)
     print()
+
+def find_openclaw_installation():
+    """Find OpenClaw installation directory"""
+    possible_paths = []
+
+    # Common OpenClaw installation locations
+    if sys.platform == 'win32':
+        # User's home directory
+        home = Path.home()
+        possible_paths.extend([
+            home / "OpenClaw",
+            home / ".openclaw",
+            Path("D:/OpenClaw"),
+            Path("C:/OpenClaw"),
+        ])
+        # Check environment variable
+        if "OPENCLAW_DIR" in os.environ:
+            possible_paths.append(Path(os.environ["OPENCLAW_DIR"]))
+    else:
+        home = Path.home()
+        possible_paths.extend([
+            home / "OpenClaw",
+            home / ".openclaw",
+            Path("/opt/OpenClaw"),
+            Path("/usr/local/OpenClaw"),
+        ])
+
+    # Check which paths exist
+    for path in possible_paths:
+        if path.exists():
+            return path
+
+    return None
+
+def find_openclaw_skills_dir(openclaw_dir):
+    """Find OpenClaw skills directory"""
+    skills_dir = openclaw_dir / "skills"
+    if skills_dir.exists():
+        return skills_dir
+    return None
+
+def ask_install_location():
+    """Ask user for installation location"""
+    print("\n选择安装方式:")
+    print("1. 自动安装到 OpenClaw skills 目录")
+    print("2. 自定义安装位置")
+
+    while True:
+        choice = input("\n请输入选项 (1/2): ").strip()
+        if choice in ['1', '2']:
+            return choice
+        print("请输入 1 或 2")
+
+def ask_custom_location():
+    """Ask user for custom installation location"""
+    print("\n请输入自定义安装路径 (直接回车取消):")
+    path = input("路径: ").strip()
+    if path:
+        return Path(path)
+    return None
+
+def install_to_openclaw(skills_dir):
+    """Install plugin to OpenClaw skills directory"""
+    plugin_name = "sillymd"
+    target_dir = skills_dir / plugin_name
+    source_dir = Path(__file__).parent
+
+    print(f"\n安装到: {target_dir}")
+    print("-" * 60)
+
+    # Create symlink or copy
+    if target_dir.exists():
+        print(f"[INFO] 目录已存在: {target_dir}")
+        response = input("是否覆盖? (y/n): ").strip().lower()
+        if response == 'y':
+            if target_dir.is_symlink():
+                target_dir.unlink()
+            else:
+                shutil.rmtree(target_dir)
+        else:
+            print("[SKIP] 跳过安装")
+            return target_dir
+
+    # Create symlink (works better with git)
+    try:
+        if sys.platform == 'win32':
+            # On Windows, use junction for directories
+            subprocess.run(['cmd', '/c', 'mklink', '/J', str(target_dir), str(source_dir)],
+                         shell=True, check=True, capture_output=True)
+            print(f"[OK] 创建目录联接: {target_dir}")
+        else:
+            target_dir.symlink_to(source_dir)
+            print(f"[OK] 创建符号链接: {target_dir}")
+    except Exception:
+        # Fallback to copy
+        print(f"[INFO] 符号链接失败，使用复制方式")
+        shutil.copytree(source_dir, target_dir, dirs_exist_ok=True)
+        print(f"[OK] 复制完成: {target_dir}")
+
+    return target_dir
+
+def register_to_openclaw_channel(openclaw_dir, plugin_dir):
+    """Register plugin as OpenClaw channel"""
+    print("\n注册到 OpenClaw Channel...")
+    print("-" * 60)
+
+    # Check if OpenClaw config exists
+    config_file = openclaw_dir / ".openclaw" / "openclaw.json"
+    if not config_file.exists():
+        print(f"[WARN] OpenClaw 配置文件不存在: {config_file}")
+        return False
+
+    try:
+        # Read existing config
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+
+        # Check if sillymd channel already exists
+        channels = config.get('channels', {})
+
+        # Add sillymd channel config
+        channels['sillymd'] = {
+            "enabled": True,
+            "type": "sillymd-wechat",
+            "config": {
+                "skill_path": str(plugin_dir)
+            }
+        }
+
+        config['channels'] = channels
+
+        # Backup original config
+        backup_file = config_file.with_suffix('.json.bak')
+        shutil.copy(config_file, backup_file)
+        print(f"[OK] 备份配置文件: {backup_file}")
+
+        # Write updated config
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+
+        print("[OK] 已添加 SillyMD Channel 配置")
+        print(f"  配置文件: {config_file}")
+        return True
+
+    except Exception as e:
+        print(f"[FAIL] 注册 Channel 失败: {e}")
+        return False
 
 def check_python_version():
     """Check Python version"""
@@ -328,6 +477,39 @@ def main():
 
     imports_ok = test_imports()
 
+    # Ask for installation location
+    print("\n" + "=" * 60)
+    install_choice = ask_install_location()
+
+    installed_path = None
+    openclaw_dir = None
+
+    if install_choice == '1':
+        # Auto find OpenClaw
+        openclaw_dir = find_openclaw_installation()
+        if openclaw_dir:
+            print(f"\n[OK] 找到 OpenClaw: {openclaw_dir}")
+            skills_dir = find_openclaw_skills_dir(openclaw_dir)
+            if skills_dir:
+                installed_path = install_to_openclaw(skills_dir)
+            else:
+                print(f"[FAIL] 未找到 skills 目录")
+        else:
+            print("[FAIL] 未找到 OpenClaw 安装目录")
+            print("请选择自定义安装位置或确保 OpenClaw 已安装")
+    else:
+        # Custom location
+        custom_path = ask_custom_location()
+        if custom_path:
+            if not custom_path.exists():
+                custom_path.mkdir(parents=True)
+            installed_path = custom_path
+            print(f"\n[OK] 安装到自定义位置: {installed_path}")
+
+    # Register to OpenClaw if installed to OpenClaw skills
+    if installed_path and openclaw_dir:
+        register_to_openclaw_channel(openclaw_dir, installed_path)
+
     print("\n" + "=" * 60)
     print("Installation Complete!")
     print("=" * 60)
@@ -338,6 +520,8 @@ def main():
         print("1. Edit .env file with your configuration")
         print("2. Edit config.json with your API key and owner_id")
         print("3. Run: python wecom_to_openclaw_bridge.py")
+        if installed_path:
+            print(f"\n[INFO] 插件已安装到: {installed_path}")
     else:
         print("\n[WARN] Some components may not be installed correctly, please check logs above")
         if not models_ok:
