@@ -14,24 +14,8 @@ from pathlib import Path
 
 SILLYHUB_URL = "https://resource.sillymd.com/sillyhub"
 
-# Files to download from SillyHub
-FILES_TO_DOWNLOAD = [
-    # Models
-    "models/tiny.pt",
-    "models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/am.mvn",
-    "models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/config.yaml",
-    "models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/configuration.json",
-    "models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/model.int8.onnx",
-    "models/sherpa-onnx/ASR/sherpa-onnx-paraformer-zh-2023-09-14/tokens.txt",
-    # Wheels
-    "wheels/kaldi_native_fbank-1.22.3-cp38-cp38-win_amd64.whl",
-    "wheels/librosa-0.10.1-py3-none-any.whl",
-    "wheels/numpy-1.24.4-cp38-cp38-win_amd64.whl",
-    "wheels/onnxruntime-1.16.3-cp38-cp38-win_amd64.whl",
-    "wheels/sympy-1.12-py3-none-any.whl",
-    "wheels/torch-2.0.1-cp38-cp38-win_amd64.whl",
-    "wheels/torchaudio-2.0.2-cp38-cp38-win_amd64.whl",
-]
+# Directories to download from SillyHub
+DOWNLOAD_DIRS = ["models", "wheels"]
 
 # Fix Windows terminal encoding
 if sys.platform == 'win32':
@@ -62,16 +46,22 @@ def download_from_sillyhub():
     """Download models and wheels from SillyHub"""
     base_dir = Path(__file__).parent
 
-    # Check if already exists
-    models_dir = base_dir / "models"
-    wheels_dir = base_dir / "wheels"
-    all_exist = True
-    for rel_path in FILES_TO_DOWNLOAD:
-        target_path = base_dir / rel_path
-        if not target_path.exists():
-            all_exist = False
-            break
+    # Collect all files to download from models/ and wheels/ directories
+    files_to_download = []
+    for dir_name in DOWNLOAD_DIRS:
+        dir_path = base_dir / dir_name
+        if dir_path.exists():
+            for file_path in dir_path.rglob("*"):
+                if file_path.is_file():
+                    rel_path = str(file_path.relative_to(base_dir))
+                    files_to_download.append(rel_path)
 
+    if not files_to_download:
+        print("[SKIP] No files to download")
+        return True
+
+    # Check if all files exist
+    all_exist = all((base_dir / f).exists() for f in files_to_download)
     if all_exist:
         print("[SKIP] All files already exist")
         return True
@@ -82,7 +72,7 @@ def download_from_sillyhub():
     success_count = 0
     fail_count = 0
 
-    for rel_path in FILES_TO_DOWNLOAD:
+    for rel_path in files_to_download:
         target_path = base_dir / rel_path
         if target_path.exists():
             continue
