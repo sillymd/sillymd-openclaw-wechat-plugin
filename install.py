@@ -16,9 +16,6 @@ from pathlib import Path
 
 SILLYHUB_URL = "https://resource.sillymd.com/sillyhub"
 
-# Directories to download from SillyHub
-DOWNLOAD_DIRS = ["models", "wheels"]
-
 # Fix Windows terminal encoding
 if sys.platform == 'win32':
     import ctypes
@@ -409,31 +406,40 @@ def check_python_version():
     print(f"[OK] Python version: {version.major}.{version.minor}.{version.micro}")
     return True
 
-def download_from_sillyhub():
-    """Download models and wheels from SillyHub"""
-    base_dir = Path(__file__).parent
+def download_from_list(list_file, base_dir):
+    """Download files from a list file (models_list.md or wheels_list.md)"""
+    list_path = base_dir / list_file
+    if not list_path.exists():
+        print(f"[SKIP] {list_file} not found")
+        return True
 
-    # Collect all files to download from models/ and wheels/ directories
+    print(f"\nReading {list_file}...")
+
+    # Parse the markdown table to extract file paths
     files_to_download = []
-    for dir_name in DOWNLOAD_DIRS:
-        dir_path = base_dir / dir_name
-        if dir_path.exists():
-            for file_path in dir_path.rglob("*"):
-                if file_path.is_file():
-                    rel_path = str(file_path.relative_to(base_dir))
-                    files_to_download.append(rel_path)
+    in_table = False
+    with open(list_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith('|') and '|' in line[1:]:
+                parts = [p.strip() for p in line.split('|')]
+                if len(parts) >= 3 and parts[1] and not parts[1].startswith('-'):
+                    # This is a data row, second column is the path
+                    file_path = parts[2].strip()
+                    if file_path and not file_path.startswith('http'):
+                        files_to_download.append(file_path)
 
     if not files_to_download:
-        print("[SKIP] No files to download")
+        print(f"[SKIP] No files in {list_file}")
         return True
 
     # Check if all files exist
     all_exist = all((base_dir / f).exists() for f in files_to_download)
     if all_exist:
-        print("[SKIP] All files already exist")
+        print(f"[SKIP] All files from {list_file} already exist")
         return True
 
-    print("\nDownloading from SillyHub...")
+    print(f"Downloading {len(files_to_download)} files from {list_file}...")
     print("-" * 60)
 
     success_count = 0
@@ -459,6 +465,50 @@ def download_from_sillyhub():
     print("-" * 60)
     print(f"Download complete: {success_count} success, {fail_count} failed")
     return fail_count == 0
+
+def download_from_sillyhub():
+    """Download models and wheels from SillyHub using list files"""
+    base_dir = Path(__file__).parent
+
+    # Check if we have local files - if so, use them instead of downloading
+    local_models = base_dir / "models"
+    local_wheels = base_dir / "wheels"
+
+    has_local_files = (local_models.exists() or local_wheels.exists())
+
+    if has_local_files:
+        # Use local files - just check if they're complete
+        print("[INFO] Using local models/wheels directories")
+        files_to_download = []
+
+        if local_models.exists():
+            for file_path in local_models.rglob("*"):
+                if file_path.is_file():
+                    rel_path = str(file_path.relative_to(base_dir))
+                    files_to_download.append(rel_path)
+
+        if local_wheels.exists():
+            for file_path in local_wheels.rglob("*.whl"):
+                if file_path.is_file():
+                    rel_path = str(file_path.relative_to(base_dir))
+                    files_to_download.append(rel_path)
+
+        if files_to_download:
+            all_exist = all((base_dir / f).exists() for f in files_to_download)
+            if all_exist:
+                print("[SKIP] All local files already exist")
+                return True
+            print(f"\nUsing {len(files_to_download)} local files...")
+            return True
+
+    # Download from list files
+    print("\nDownloading from SillyHub...")
+    print("=" * 60)
+
+    download_models = download_from_list("models_list.md", base_dir)
+    download_wheels = download_from_list("wheels_list.md", base_dir)
+
+    return download_models and download_wheels
 
 def install_from_wheels():
     """Install dependencies from wheels directory"""
