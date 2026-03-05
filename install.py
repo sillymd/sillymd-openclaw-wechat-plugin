@@ -182,6 +182,159 @@ def register_to_openclaw_channel(openclaw_dir, plugin_dir):
         print(f"[FAIL] 注册 Channel 失败: {e}")
         return False
 
+def setup_health_check(openclaw_dir: Path, plugin_dir: Path):
+    """设置健康检测，定时检查桥接器是否运行"""
+    print("\n配置健康检测...")
+    print("-" * 60)
+
+    # 确保 logs 目录存在
+    logs_dir = plugin_dir / "logs"
+    logs_dir.mkdir(exist_ok=True)
+
+    # 检查 .bridge_pid 文件是否存在来判断进程是否运行
+    bridge_script = plugin_dir / "wecom_to_openclaw_bridge.py"
+
+    if not bridge_script.exists():
+        print(f"[WARN] 桥接器脚本不存在: {bridge_script}")
+        return False
+
+    # 获取 Python 解释器路径
+    python_path = sys.executable
+
+    if sys.platform == 'win32':
+        # Windows: 使用计划任务
+        task_name = "SillyMDWeChatBridge"
+        # 检查任务是否已存在
+        check_result = subprocess.run(
+            ['schtasks', '/Query', '/TN', task_name],
+            capture_output=True,
+            text=True
+        )
+
+        if check_result.returncode == 0:
+            print(f"[INFO] 健康检测任务已存在: {task_name}")
+            response = input("是否重新创建? (y/n): ").strip().lower()
+            if response != 'y':
+                return True
+
+        # 创建 PowerShell 脚本用于健康检测
+        health_check_script = plugin_dir / "health_check.ps1"
+        script_content = f'''# SillyMD WeChat Bridge Health Check
+$pidFile = "{plugin_dir / ".bridge_pid"}"
+$bridgeScript = "{bridge_script}"
+$pythonExe = "{python_path}"
+$logFile = "{plugin_dir / "logs" / "health_check.log"}"
+
+# 检查 PID 文件是否存在
+if (Test-Path $pidFile) {{
+    $pid = Get-Content $pidFile -ErrorAction SilentlyContinue
+    if ($pid) {{
+        # 检查进程是否仍在运行
+        $process = Get-Process -Id $pid -ErrorAction SilentlyContinue
+        if ($process) {{
+            exit 0  # 进程正在运行
+        }}
+    }}
+}}
+
+# 进程未运行，记录日志并启动
+$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+"$timestamp - Bridge not running, starting..." | Out-File -FilePath $logFile -Append
+
+# 启动桥接器
+Start-Process -FilePath $pythonExe -ArgumentList $bridgeScript -WindowStyle Hidden
+'''
+
+        try:
+            with open(health_check_script, 'w', encoding='utf-8') as f:
+                f.write(script_content)
+            print(f"[OK] 健康检测脚本: {health_check_script}")
+        except Exception as e:
+            print(f"[FAIL] 创建健康检测脚本失败: {e}")
+            return False
+
+        # 创建计划任务
+        # 每5分钟检查一次
+        cmd = [
+            'schtasks', '/Create',
+            '/TN', task_name,
+            '/TR', f'powershell -ExecutionPolicy Bypass -File "{health_check_script}"',
+            '/SC', 'MINUTE',
+            '/MO', '5',
+            '/F'  # 强制覆盖
+        ]
+
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+            print(f"[OK] 已创建计划任务: {task_name}")
+            print(f"  检查间隔: 5分钟")
+            return True
+        except Exception as e:
+            print(f"[FAIL] 创建计划任务失败: {e}")
+            return False
+
+    else:
+        # Linux/Mac: 使用 cron
+        # 创建健康检查脚本
+        health_check_script = plugin_dir / "health_check.sh"
+        script_content = f'''#!/bin/bash
+# SillyMD WeChat Bridge Health Check
+
+PID_FILE="{plugin_dir / ".bridge_pid"}"
+BRIDGE_SCRIPT="{bridge_script}"
+PYTHON="{python_path}"
+LOG_FILE="{plugin_dir / "logs" / "health_check.log"}"
+
+# 检查 PID 文件是否存在
+if [ -f "$PID_FILE" ]; then
+    PID=$(cat "$PID_FILE")
+    # 检查进程是否仍在运行
+    if kill -0 "$PID" 2>/dev/null; then
+        exit 0  # 进程正在运行
+    fi
+fi
+
+# 进程未运行，记录日志并启动
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Bridge not running, starting..." >> "$LOG_FILE"
+
+# 启动桥接器
+nohup "$PYTHON" "$BRIDGE_SCRIPT" > /dev/null 2>&1 &
+'''
+
+        try:
+            with open(health_check_script, 'w', encoding='utf-8') as f:
+                f.write(script_content)
+            os.chmod(health_check_script, 0o755)
+            print(f"[OK] 健康检测脚本: {health_check_script}")
+        except Exception as e:
+            print(f"[FAIL] 创建健康检测脚本失败: {e}")
+            return False
+
+        # 添加 cron 任务
+        cron_entry = f'*/5 * * * * {health_check_script}'
+
+        try:
+            # 读取现有 crontab
+            result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+            existing_cron = result.stdout if result.returncode == 0 else ""
+
+            # 检查是否已存在
+            if 'health_check.sh' in existing_cron:
+                print(f"[INFO] 健康检测 cron 已存在")
+                return True
+
+            # 添加新任务
+            new_cron = existing_cron.strip() + '\n' + cron_entry + '\n'
+            proc = subprocess.Popen(['crontab', '-'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc.communicate(input=new_cron.encode())
+
+            print(f"[OK] 已添加 cron 健康检测")
+            print(f"  检查间隔: 5分钟")
+            return True
+        except Exception as e:
+            print(f"[FAIL] 添加 cron 失败: {e}")
+            return False
+
 def add_npm_to_path():
     """Add npm global path to system PATH"""
     if sys.platform != 'win32':
@@ -564,6 +717,14 @@ def main():
     # Register to OpenClaw if installed to OpenClaw skills
     if installed_path and openclaw_dir:
         register_to_openclaw_channel(openclaw_dir, installed_path)
+
+    # Setup health check
+    if installed_path and openclaw_dir:
+        print("\n是否配置健康检测? (自动检测桥接器是否运行，未运行则自动启动)")
+        print("建议: 开启以确保桥接器持续运行")
+        response = input("配置健康检测 (y/n)? 默认 y: ").strip().lower()
+        if response == '' or response == 'y':
+            setup_health_check(openclaw_dir, installed_path)
 
     # Configure npm PATH
     if sys.platform == 'win32':
