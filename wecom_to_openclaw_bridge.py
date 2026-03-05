@@ -1203,6 +1203,9 @@ class WeComToOpenClawBridge:
                 media_path=image_path
             )
 
+            # 保存聊天记录（用户发送的图片）
+            self._save_chat_history("User", f"[图片] 路径: {image_path}", sender)
+
         except Exception as e:
             logger.error(f"保存图片失败: {e}")
             await self._forward_to_openclaw("[图片] 处理失败", sender)
@@ -1249,6 +1252,9 @@ class WeComToOpenClawBridge:
                 media_path=video_path
             )
 
+            # 保存聊天记录（用户发送的视频）
+            self._save_chat_history("User", f"[视频] 路径: {video_path}", sender)
+
         except Exception as e:
             logger.error(f"保存视频失败: {e}")
             await self._forward_to_openclaw("[视频] 处理失败", sender)
@@ -1271,6 +1277,8 @@ class WeComToOpenClawBridge:
             logger.info(f"使用企微语音识别结果: {recognition[:50]}...")
             voice_info = f"[语音] 识别结果: {recognition}\n[语音消息，已自动转文字]"
             await self._forward_to_openclaw(voice_info, sender)
+            # 保存聊天记录
+            self._save_chat_history("User", voice_info, sender)
             return
 
         logger.info(f"下载语音: media_id={media_id}, format={format_type}")
@@ -1323,6 +1331,9 @@ class WeComToOpenClawBridge:
                 media_type="voice",
                 media_path=wav_path if conversion_success else voice_path
             )
+
+            # 保存聊天记录（用户发送的语音）
+            self._save_chat_history("User", voice_info, sender)
 
             # 如果配置为不保存语音文件，则删除（语音消息是用户发送的，不是文件）
             # 语音消息：voice_path 保存的是 .amr 文件
@@ -1477,6 +1488,9 @@ class WeComToOpenClawBridge:
             media_type="file",
             media_path=file_path
         )
+
+        # 保存聊天记录（用户发送的文件）
+        self._save_chat_history("User", file_info, sender)
 
         logger.info(f"文件信息已转发: {file_name}")
 
