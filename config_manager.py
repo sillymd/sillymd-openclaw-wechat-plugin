@@ -32,6 +32,8 @@ class ServerConfig:
     wechat: dict = None
     # OpenClaw 配置 (自动创建)
     openclaw: dict = None
+    # 桥接器配置
+    bridge: dict = None
 
     def __post_init__(self):
         """初始化后处理"""
@@ -39,6 +41,12 @@ class ServerConfig:
             self.wechat = {}
         if self.openclaw is None:
             self.openclaw = {}
+        if self.bridge is None:
+            self.bridge = {
+                "save_chat_history": True,
+                "save_voice_files": False,
+                "health_check_enabled": True
+            }
         # 如果 ws_url 为空，从 base_url 自动生成
         if not self.ws_url and self.base_url:
             self.ws_url = self.base_url.replace('https://', 'wss://').replace('http://', 'ws://') + '/ws'

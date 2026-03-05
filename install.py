@@ -720,11 +720,28 @@ def main():
 
     # Setup health check
     if installed_path and openclaw_dir:
-        print("\n是否配置健康检测? (自动检测桥接器是否运行，未运行则自动启动)")
-        print("建议: 开启以确保桥接器持续运行")
-        response = input("配置健康检测 (y/n)? 默认 y: ").strip().lower()
-        if response == '' or response == 'y':
-            setup_health_check(openclaw_dir, installed_path)
+        # 读取配置检查是否启用健康检测
+        config_file = installed_path / "config.json"
+        health_check_enabled = True  # 默认开启
+
+        if config_file.exists():
+            try:
+                import json
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    bridge_config = config.get('bridge', {})
+                    health_check_enabled = bridge_config.get('health_check_enabled', True)
+            except Exception:
+                pass
+
+        if not health_check_enabled:
+            print("\n[INFO] 健康检测已在配置中禁用，跳过配置")
+        else:
+            print("\n是否配置健康检测? (自动检测桥接器是否运行，未运行则自动启动)")
+            print("建议: 开启以确保桥接器持续运行")
+            response = input("配置健康检测 (y/n)? 默认 y: ").strip().lower()
+            if response == '' or response == 'y':
+                setup_health_check(openclaw_dir, installed_path)
 
     # Configure npm PATH
     if sys.platform == 'win32':

@@ -2,5 +2,10 @@
   "api_key": "YOUR_SILLYMD_API_KEY",
   "wechat": {
     "owner_id": "YOUR_WECHAT_OWNER_ID"
+  },
+  "bridge": {
+    "save_chat_history": true,
+    "save_voice_files": false,
+    "health_check_enabled": true
   }
 }

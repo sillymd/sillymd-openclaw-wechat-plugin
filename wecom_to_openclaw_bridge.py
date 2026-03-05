@@ -108,6 +108,8 @@ FILE_STORAGE_DIR = Path(__file__).parent / "file"
 FILE_STORAGE_DIR.mkdir(exist_ok=True)
 logger.info(f"文件存储目录: {FILE_STORAGE_DIR}")
 
+CHAT_HISTORY_FILE = FILE_STORAGE_DIR / "chat.md"
+
 
 # ========== 动态配置检测函数 ==========
 
@@ -329,6 +331,12 @@ class WeComToOpenClawBridge:
         self.wechat_config = {**wechat_info, 'owner_id': owner_id}
         logger.info("企业微信配置已获取（仅内存存储）")
 
+        # 加载桥接器配置
+        bridge_config = self.server_config.bridge or {}
+        self.save_chat_history = bridge_config.get('save_chat_history', True)
+        self.save_voice_files = bridge_config.get('save_voice_files', False)
+        logger.info(f"桥接器配置: 保存聊天记录={self.save_chat_history}, 保存语音文件={self.save_voice_files}")
+
         # 只保存最小化配置（api_key 和 owner_id），API获取的配置不保存到文件
         self.config_manager.save_minimal_config(self.server_config)
 
@@ -428,6 +436,41 @@ class WeComToOpenClawBridge:
             msg_list = list(self.processed_encrypted_msgs)
             self.processed_encrypted_msgs = set(msg_list[-MAX_SET_SIZE:])
 
+    def _save_chat_history(self, role: str, content: str, sender: str = None):
+        """保存聊天记录到 file/chat.md"""
+        if not self.save_chat_history:
+            return
+
+        try:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            if sender:
+                chat_line = f"\n## {timestamp} - {role} ({sender})\n\n{content}\n"
+            else:
+                chat_line = f"\n## {timestamp} - {role}\n\n{content}\n"
+
+            with open(CHAT_HISTORY_FILE, 'a', encoding='utf-8') as f:
+                f.write(chat_line)
+        except Exception as e:
+            logger.warning(f"保存聊天记录失败: {e}")
+
+    def _delete_voice_files(self, voice_path: str, wav_path: str = None):
+        """删除语音文件（如果配置为不保存）"""
+        if self.save_voice_files:
+            return
+
+        try:
+            # 删除原始语音文件
+            if voice_path and Path(voice_path).exists():
+                Path(voice_path).unlink()
+                logger.info(f"已删除语音文件: {voice_path}")
+
+            # 删除转换后的WAV文件
+            if wav_path and Path(wav_path).exists():
+                Path(wav_path).unlink()
+                logger.info(f"已删除WAV文件: {wav_path}")
+        except Exception as e:
+            logger.warning(f"删除语音文件失败: {e}")
+
     async def _handle_message(self, message: dict):
         """处理 SillyMD 消息"""
         async with self._message_lock:
@@ -503,6 +546,8 @@ class WeComToOpenClawBridge:
                                 await self._reply_system_message(content, sender)
                             else:
                                 result = await self._forward_to_openclaw(content, sender)
+                                # 保存聊天记录
+                                self._save_chat_history("User", content, sender)
                                 if result.get("success"):
                                     self.stats["messages_forwarded"] += 1
                                     logger.info("文本消息转发成功")
@@ -1002,6 +1047,8 @@ class WeComToOpenClawBridge:
 
             if result.get('status') == 'success':
                 self.stats['responses_sent'] += 1
+                # 保存聊天记录（Assistant响应）
+                self._save_chat_history("Assistant", message, original_sender)
                 logger.info(f"响应已发送到企微 (总计: {self.stats['responses_sent']})")
             else:
                 logger.error(f"发送响应失败: {result}")
@@ -1276,6 +1323,10 @@ class WeComToOpenClawBridge:
                 media_type="voice",
                 media_path=wav_path if conversion_success else voice_path
             )
+
+            # 如果配置为不保存语音文件，则删除（语音消息是用户发送的，不是文件）
+            # 语音消息：voice_path 保存的是 .amr 文件
+            self._delete_voice_files(voice_path, wav_path if conversion_success else None)
 
         except Exception as e:
             logger.error(f"保存语音失败: {e}")
