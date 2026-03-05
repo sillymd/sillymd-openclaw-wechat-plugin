@@ -18,15 +18,17 @@ class OpenClawSessionClient:
     def __init__(
         self,
         gateway_url: str = "ws://127.0.0.1:18789/ws",
-        api_token: str = "jcoding"
+        api_token: Optional[str] = None
     ):
         """
         初始化客户端
 
         Args:
             gateway_url: OpenClaw Gateway WebSocket URL
-            api_token: API Token
+            api_token: API Token (必须提供，不能使用默认值)
         """
+        if not api_token:
+            raise ValueError("api_token is required, cannot be empty")
         self.gateway_url = gateway_url
         self.api_token = api_token
         self.websocket: Optional[websockets.WebSocketClientProtocol] = None
@@ -131,14 +133,14 @@ class OpenClawSessionClient:
 
 async def create_session_client(
     gateway_url: str = "ws://127.0.0.1:18789/ws",
-    api_token: str = "jcoding"
+    api_token: Optional[str] = None
 ) -> OpenClawSessionClient:
     """
     创建 Session 客户端
 
     Args:
         gateway_url: OpenClaw Gateway WebSocket URL
-        api_token: API Token
+        api_token: API Token (必须提供)
 
     Returns:
         OpenClawSessionClient: 客户端实例
@@ -153,7 +155,7 @@ async def send_to_openclaw(
     message: str,
     session_key: str,
     gateway_url: str = "ws://127.0.0.1:18789/ws",
-    api_token: str = "jcoding"
+    api_token: Optional[str] = None
 ) -> Dict:
     """
     发送消息到 OpenClaw（便捷函数）
@@ -162,11 +164,16 @@ async def send_to_openclaw(
         message: 消息内容
         session_key: OpenClaw session key
         gateway_url: Gateway WebSocket URL
-        api_token: API Token
+        api_token: API Token (必须提供)
 
     Returns:
         Dict: 发送结果
     """
+    if not api_token:
+        return {
+            "success": False,
+            "error": "api_token is required"
+        }
     client = OpenClawSessionClient(
         gateway_url=gateway_url,
         api_token=api_token

@@ -394,8 +394,31 @@ class WeComToOpenClawBridge:
             with open(self._dedup_file, 'a', encoding='utf-8') as f:
                 f.write(f"{msg_id}\n")
                 f.flush()  # 确保立即写入磁盘
+
+            # 定期清理集合，防止内存泄漏
+            self._cleanup_message_sets()
         except Exception as e:
             logger.warning(f"保存已处理响应ID失败: {e}")
+
+    def _cleanup_message_sets(self):
+        """清理过期的消息集合，防止内存泄漏"""
+        import time
+
+        # 如果集合太大，清理到合理大小
+        MAX_SET_SIZE = 500
+
+        if len(self.processed_message_ids) > MAX_SET_SIZE:
+            # 只保留最新的
+            msg_list = list(self.processed_message_ids)
+            self.processed_message_ids = set(msg_list[-MAX_SET_SIZE:])
+
+        if len(self.processed_wechat_msg_ids) > MAX_SET_SIZE:
+            msg_list = list(self.processed_wechat_msg_ids)
+            self.processed_wechat_msg_ids = set(msg_list[-MAX_SET_SIZE:])
+
+        if len(self.processed_encrypted_msgs) > MAX_SET_SIZE:
+            msg_list = list(self.processed_encrypted_msgs)
+            self.processed_encrypted_msgs = set(msg_list[-MAX_SET_SIZE:])
 
     async def _handle_message(self, message: dict):
         """处理 SillyMD 消息"""
@@ -429,9 +452,6 @@ class WeComToOpenClawBridge:
                         logger.info("检测到重复的加密消息，跳过处理")
                         return
                     self.processed_encrypted_msgs.add(encrypted_hash)
-                    # 限制集合大小
-                    if len(self.processed_encrypted_msgs) > 500:
-                        self.processed_encrypted_msgs = set(list(self.processed_encrypted_msgs)[-250:])
 
                 logger.info(f"收到加密消息 #{self.stats['messages_received'] + 1}")
                 self.stats["messages_received"] += 1
@@ -455,9 +475,6 @@ class WeComToOpenClawBridge:
                             return
                         self.processed_wechat_msg_ids.add(msg_id)
                         logger.info(f"消息ID: {msg_id[:16]}...")
-                        # 限制集合大小，防止内存无限增长
-                        if len(self.processed_wechat_msg_ids) > 1000:
-                            self.processed_wechat_msg_ids = set(list(self.processed_wechat_msg_ids)[-500:])
 
                     # 提取消息数据 v1.1.0 支持媒体消息
                     msg_payload, sender = self._extract_message_data(decrypted_xml)
@@ -607,85 +624,110 @@ class WeComToOpenClawBridge:
             logger.error(f"XML 解析失败: {e}")
             return None, None
 
+    def _get_openclaw_session(self) -> tuple:
+        """获取 OpenClaw session（动态获取最新）"""
+        agent_name = self.openclaw_config.get('agent', 'main')
+        dynamic_session_id, dynamic_session_file = find_openclaw_session(agent_name)
+
+        if not dynamic_session_id or not dynamic_session_file:
+            logger.error("无法获取 OpenClaw session，请检查 OpenClaw 是否正在运行")
+            return None, None
+
+        # 更新实例变量
+        self.openclaw_session_id = dynamic_session_id
+        self.openclaw_session_file = dynamic_session_file
+        logger.info(f"使用最新 session: {self.openclaw_session_id}")
+
+        return dynamic_session_id, dynamic_session_file
+
+    def _build_target_user(self, sender: str) -> str:
+        """构建目标用户（用于后续回复）- 发给发送者，抄送owner"""
+        wechat_config = self.wechat_config
+        owner_id = wechat_config.get('owner_id', '')
+        if sender and sender != owner_id:
+            return f"{sender}|{owner_id}" if owner_id else sender
+        elif sender:
+            return sender
+        else:
+            return owner_id or "@all"
+
+    def _record_pending_response(self, content_hash: str, target_user: str, content: str, sender: str, prefix: str = ""):
+        """记录待处理响应的预期目标"""
+        import time
+        self._pending_responses[content_hash] = (target_user, time.time(), content, sender)
+        logger.info(f"[{prefix}Pending] 记录响应目标: {target_user}, hash={content_hash[:8]}..., sender={sender}")
+
+    def _cleanup_expired_pending(self):
+        """清理过期的pending记录（超过5分钟）"""
+        import time
+        current_time = time.time()
+        expired_hashes = [h for h, (_, ts, _, _) in self._pending_responses.items() if current_time - ts > 300]
+        for h in expired_hashes:
+            del self._pending_responses[h]
+
+    def _trigger_openclaw_agent(self, message_text: str):
+        """
+        触发 OpenClaw agent 运行
+
+        注意: 使用 Popen 而不等待是设计如此，因为我们只是触发 agent 运行，
+        而不是等待它完成。agent 会在后台运行并处理消息。
+        """
+        import subprocess
+        cmd = [
+            self.openclaw_cmd,
+            "agent",
+            "--session-id", self.openclaw_session_id,
+            "--message", message_text,
+            "--thinking", "low"
+        ]
+        logger.info(f"触发 OpenClaw agent: {self.openclaw_cmd}")
+
+        # 使用 shell=False 避免命令注入风险
+        # 不等待进程完成，因为是异步触发
+        subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False
+        )
+        logger.info("Agent 已触发")
+
     def _forward_to_openclaw_sync(self, content: str, sender: str) -> dict:
         """同步方式转发到 OpenClaw"""
         try:
-            import subprocess
             import hashlib
-            import time
 
             # 防护：确保 content 不为 None 或空
             if not content:
                 logger.warning(f"尝试转发空内容，跳过: sender={sender}")
                 return {"success": False, "error": "Empty content"}
 
-            # 动态获取最新 session（每次发送消息时获取最新的）
-            agent_name = self.openclaw_config.get('agent', 'main')
-            dynamic_session_id, dynamic_session_file = find_openclaw_session(agent_name)
-
-            if not dynamic_session_id or not dynamic_session_file:
-                logger.error("无法获取 OpenClaw session，请检查 OpenClaw 是否正在运行")
+            # 获取 session
+            session_id, session_file = self._get_openclaw_session()
+            if not session_id or not session_file:
                 return {"success": False, "error": "No session available"}
-
-            # 更新实例变量（供响应监控使用）
-            self.openclaw_session_id = dynamic_session_id
-            self.openclaw_session_file = dynamic_session_file
-            logger.info(f"使用最新 session: {self.openclaw_session_id}")
 
             # 在消息内容中添加[sender]标识
             message_text = f"[{sender}] {content}"
 
-            # 计算内容哈希，用于后续关联响应
+            # 计算内容哈希
             content_hash = hashlib.md5(content.encode()).hexdigest()
 
-            # 构建目标用户（用于后续回复）- 发给发送者，抄送owner
-            wechat_config = self.wechat_config
-            owner_id = wechat_config.get('owner_id', '')
-            if sender and sender != owner_id:
-                # 发给发送者 + 抄送owner
-                target_user = f"{sender}|{owner_id}" if owner_id else sender
-            elif sender:
-                # 发送者就是owner，只发给owner
-                target_user = sender
-            else:
-                target_user = owner_id or "@all"
+            # 构建目标用户并记录
+            target_user = self._build_target_user(sender)
+            self._record_pending_response(content_hash, target_user, content, sender, prefix="")
+            self._cleanup_expired_pending()
 
-            # 记录待处理响应的预期目标用户和问题内容（5分钟过期）
-            self._pending_responses[content_hash] = (target_user, time.time(), content, sender)
-            logger.info(f"[Pending] 记录响应目标: {target_user}, hash={content_hash[:8]}..., sender={sender}")
-
-            # 清理过期的pending记录（超过5分钟）
-            current_time = time.time()
-            expired_hashes = [h for h, (_, ts, _, _) in self._pending_responses.items() if current_time - ts > 300]
-            for h in expired_hashes:
-                del self._pending_responses[h]
-
-            # 注意：不要直接写入 session 文件，让 OpenClaw agent 自己处理
-            # 直接触发 OpenClaw agent 运行
+            # 触发 agent
             try:
-                cmd = [
-                    self.openclaw_cmd,
-                    "agent",
-                    "--session-id", self.openclaw_session_id,
-                    "--message", message_text,
-                    "--thinking", "low"
-                ]
-                logger.info(f"触发 OpenClaw agent: {self.openclaw_cmd}")
-
-                subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    shell=(sys.platform == 'win32')
-                )
-                logger.info("Agent 已触发")
+                self._trigger_openclaw_agent(message_text)
             except Exception as e:
                 logger.warning(f"触发 agent 失败: {e}")
 
             return {"success": True}
 
         except Exception as e:
-            logger.error(f"写入 session 文件失败: {e}")
+            logger.error(f"转发消息失败: {e}")
             return {"success": False, "error": str(e)}
 
     async def _forward_to_openclaw(self, content: str, sender: str) -> dict:
@@ -1335,6 +1377,11 @@ class WeComToOpenClawBridge:
         file_ext = msg_payload.get('file_ext', '')
         file_size = msg_payload.get('file_size', 0)
 
+        # Security: prevent path traversal attacks
+        if '..' in file_name or file_name.startswith('/') or ':' in file_name or '/' in file_name:
+            logger.warning(f"危险的文件名，已过滤: {file_name}")
+            file_name = 'unsafe_file'
+
         logger.info(f"处理文件消息: {file_name}.{file_ext} ({file_size} bytes) from {sender}")
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -1377,88 +1424,44 @@ class WeComToOpenClawBridge:
     def _forward_to_openclaw_with_media_sync(self, content: str, sender: str, media_type: str = None, media_path: str = None) -> dict:
         """同步方式转发媒体消息到 OpenClaw"""
         try:
-            import subprocess
             import hashlib
-            import time
 
             # 防护：确保 content 不为 None 或空
             if not content:
                 logger.warning(f"尝试转发空内容（媒体消息），跳过: sender={sender}")
                 return {"success": False, "error": "Empty content"}
 
-            # 动态获取最新 session（每次发送消息时获取最新的）
-            agent_name = self.openclaw_config.get('agent', 'main')
-            dynamic_session_id, dynamic_session_file = find_openclaw_session(agent_name)
-
-            if not dynamic_session_id or not dynamic_session_file:
-                logger.error("无法获取 OpenClaw session，请检查 OpenClaw 是否正在运行")
+            # 获取 session
+            session_id, session_file = self._get_openclaw_session()
+            if not session_id or not session_file:
                 return {"success": False, "error": "No session available"}
-
-            # 更新实例变量
-            self.openclaw_session_id = dynamic_session_id
-            self.openclaw_session_file = dynamic_session_file
-            logger.info(f"[Media] 使用最新 session: {self.openclaw_session_id}")
 
             # 在消息内容中添加[sender]标识
             message_text = f"[{sender}] {content}"
 
-            # 计算内容哈希，用于后续关联响应
+            # 将媒体信息附加到消息文本中
+            if media_type and media_path:
+                message_text = f"{message_text}\n\n[媒体:{media_type}] {media_path}"
+                logger.info(f"[Media] 消息中附加媒体信息: type={media_type}, path={media_path}")
+
+            # 计算内容哈希
             content_hash = hashlib.md5(content.encode()).hexdigest()
 
-            # 构建目标用户（用于后续回复）- 发给发送者，抄送owner
-            wechat_config = self.wechat_config
-            owner_id = wechat_config.get('owner_id', '')
-            if sender and sender != owner_id:
-                # 发给发送者 + 抄送owner
-                target_user = f"{sender}|{owner_id}" if owner_id else sender
-            elif sender:
-                # 发送者就是owner，只发给owner
-                target_user = sender
-            else:
-                target_user = owner_id or "@all"
+            # 构建目标用户并记录
+            target_user = self._build_target_user(sender)
+            self._record_pending_response(content_hash, target_user, content, sender, prefix="Media")
+            self._cleanup_expired_pending()
 
-            # 记录待处理响应的预期目标用户和问题内容（5分钟过期）
-            self._pending_responses[content_hash] = (target_user, time.time(), content, sender)
-            logger.info(f"[Pending-Media] 记录响应目标: {target_user}, hash={content_hash[:8]}..., sender={sender}")
-
-            # 清理过期的pending记录（超过5分钟）
-            current_time = time.time()
-            expired_hashes = [h for h, (_, ts, _, _) in self._pending_responses.items() if current_time - ts > 300]
-            for h in expired_hashes:
-                del self._pending_responses[h]
-
-            # 注意：不要直接写入 session 文件，让 OpenClaw agent 自己处理
-            # 直接触发 Agent
+            # 触发 agent
             try:
-                # 将媒体信息附加到消息文本中（openclaw agent 不支持 --media-type 和 --media-path 参数）
-                if media_type and media_path:
-                    message_text = f"{message_text}\n\n[媒体:{media_type}] {media_path}"
-                    logger.info(f"[Media] 消息中附加媒体信息: type={media_type}, path={media_path}")
-
-                cmd = [
-                    self.openclaw_cmd,
-                    "agent",
-                    "--session-id", self.openclaw_session_id,
-                    "--message", message_text,
-                    "--thinking", "low"
-                ]
-
-                logger.info(f"触发 OpenClaw agent: {self.openclaw_cmd}")
-
-                subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    shell=(sys.platform == 'win32')
-                )
-                logger.info("Agent 已触发")
+                self._trigger_openclaw_agent(message_text)
             except Exception as e:
                 logger.warning(f"触发 agent 失败: {e}")
 
             return {"success": True}
 
         except Exception as e:
-            logger.error(f"写入 session 文件失败: {e}")
+            logger.error(f"转发媒体消息失败: {e}")
             return {"success": False, "error": str(e)}
 
     async def _forward_to_openclaw_with_media(self, content: str, sender: str, media_type: str = None, media_path: str = None) -> dict:
