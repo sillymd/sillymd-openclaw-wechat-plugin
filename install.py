@@ -415,26 +415,28 @@ def download_from_list(list_file, base_dir):
 
     print(f"\nReading {list_file}...")
 
-    # Parse the markdown table to extract file paths
+    # Parse the markdown table to extract file paths and URLs
+    # Format: | File | Path | URL |
     files_to_download = []
-    in_table = False
     with open(list_path, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if line.startswith('|') and '|' in line[1:]:
                 parts = [p.strip() for p in line.split('|')]
-                if len(parts) >= 3 and parts[1] and not parts[1].startswith('-'):
-                    # This is a data row, second column is the path
-                    file_path = parts[2].strip()
-                    if file_path and not file_path.startswith('http'):
-                        files_to_download.append(file_path)
+                # Check if it's a data row (not a separator line)
+                if len(parts) >= 4 and parts[1] and not parts[1].startswith('-'):
+                    # parts[1] = File name, parts[2] = Path, parts[3] = URL
+                    file_path = parts[2].strip() if len(parts) > 2 else ""
+                    file_url = parts[3].strip() if len(parts) > 3 else ""
+                    if file_path and file_url:
+                        files_to_download.append((file_path, file_url))
 
     if not files_to_download:
         print(f"[SKIP] No files in {list_file}")
         return True
 
     # Check if all files exist
-    all_exist = all((base_dir / f).exists() for f in files_to_download)
+    all_exist = all((base_dir / f[0]).exists() for f in files_to_download)
     if all_exist:
         print(f"[SKIP] All files from {list_file} already exist")
         return True
@@ -445,12 +447,11 @@ def download_from_list(list_file, base_dir):
     success_count = 0
     fail_count = 0
 
-    for rel_path in files_to_download:
+    for rel_path, url in files_to_download:
         target_path = base_dir / rel_path
         if target_path.exists():
             continue
 
-        url = f"{SILLYHUB_URL}/{rel_path}"
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
         print(f"Downloading {rel_path}...", end=" ")
