@@ -30,11 +30,40 @@ function checkConfig() {
         if (fs.existsSync(examplePath)) {
             fs.copyFileSync(examplePath, configPath);
             console.log('[INFO] Created config.json from example');
-            console.log('[WARN] Please edit config.json with your API key and owner_id');
         }
         return false;
     }
-    return true;
+
+    // Check if config is valid
+    try {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (!config.api_key || config.api_key === 'YOUR_API_KEY_HERE') {
+            console.log('[WARN] API key not configured');
+            return false;
+        }
+        if (!config.wechat || !config.wechat.owner_id) {
+            console.log('[WARN] owner_id not configured');
+            return false;
+        }
+        return true;
+    } catch (e) {
+        console.log('[WARN] Invalid config.json');
+        return false;
+    }
+}
+
+function runInstallCheck() {
+    console.log('[INFO] Running configuration check...\n');
+    try {
+        execSync('python install.py --check', {
+            cwd: PLUGIN_DIR,
+            stdio: 'inherit'
+        });
+        return true;
+    } catch (e) {
+        console.error('[FAIL] Configuration check failed');
+        return false;
+    }
 }
 
 function installDeps() {
@@ -81,15 +110,18 @@ Usage:
 Commands:
   start       Start the plugin
   install     Install Python dependencies
+  check       Interactive configuration check (configure API key, etc.)
   config      Show configuration guide
   help        Show this help message
 
 Examples:
   sillymd-wechat start
+  sillymd-wechat check
   sillymd-wechat install
 
 Configuration:
   Edit config.json with your API key from https://websocket.sillymd.com
+  Or run: sillymd-wechat check
 `);
 }
 
@@ -113,6 +145,11 @@ function main() {
             installDeps();
             break;
 
+        case 'check':
+            if (!checkPython()) process.exit(1);
+            runInstallCheck();
+            break;
+
         case 'config':
             console.log(`
 Configuration Guide:
@@ -128,7 +165,10 @@ Configuration Guide:
      }
    }
 
-3. Start the plugin:
+3. Or run interactive check:
+   sillymd-wechat check
+
+4. Start the plugin:
    sillymd-wechat start
 `);
             break;

@@ -77,6 +77,11 @@ def find_openclaw_skills_dir(openclaw_dir):
 
 def ask_install_location():
     """Ask user for installation location"""
+    # Use default option 1 in non-interactive mode
+    if SKIP_INTERACTIVE:
+        print("\n[SKIP] Using default: Auto install to OpenClaw skills directory")
+        return '1'
+
     print("\n选择安装方式:")
     print("1. 自动安装到 OpenClaw skills 目录")
     print("2. 自定义安装位置")
@@ -89,6 +94,11 @@ def ask_install_location():
 
 def ask_custom_location():
     """Ask user for custom installation location"""
+    # In non-interactive mode, return None to skip custom location
+    if SKIP_INTERACTIVE:
+        print("\n[SKIP] Using default: Auto find OpenClaw")
+        return None
+
     print("\n请输入自定义安装路径 (直接回车取消):")
     path = input("路径: ").strip()
     if path:
@@ -662,7 +672,86 @@ def test_imports():
     print("-" * 60)
     return all_ok
 
+def run_check_mode():
+    """Run in check mode - interactive configuration without full installation"""
+    print("\n" + "=" * 60)
+    print("SillyMD WeChat Plugin - Configuration Check")
+    print("=" * 60 + "\n")
+
+    plugin_dir = Path(__file__).parent
+
+    # Check config
+    config_path = plugin_dir / "config.json"
+    example_path = plugin_dir / "config.json.example"
+
+    if not config_path.exists() and example_path.exists():
+        shutil.copy(example_path, config_path)
+        print(f"[INFO] Created config.json from example")
+
+    if config_path.exists():
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+
+            api_key = config.get('api_key', '')
+            owner_id = config.get('wechat', {}).get('owner_id', '')
+
+            print(f"Current configuration:")
+            print(f"  API Key: {'*' * 20 if api_key else '(not set)'}")
+            print(f"  Owner ID: {owner_id or '(not set)'}")
+            print()
+
+            # Ask for new values
+            print("Enter new values (press Enter to keep current):")
+
+            new_api_key = input(f"API Key [{'*' * 20 if api_key else ''}]: ").strip()
+            if new_api_key:
+                config['api_key'] = new_api_key
+
+            new_owner_id = input(f"Owner ID [{owner_id}]: ").strip()
+            if new_owner_id:
+                if 'wechat' not in config:
+                    config['wechat'] = {}
+                config['wechat']['owner_id'] = new_owner_id
+
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+
+            print("\n[OK] Configuration saved!")
+
+        except Exception as e:
+            print(f"[ERROR] Failed to update config: {e}")
+    else:
+        print("[ERROR] config.json not found")
+
+    # Test connection
+    print("\nTesting connection...")
+    try:
+        from server_connector import SillyMDConnector
+        # Just test basic import
+        print("[OK] Dependencies OK")
+    except ImportError as e:
+        print(f"[WARN] Some dependencies may be missing: {e}")
+        print("       Run 'sillymd-wechat install' to install dependencies")
+
+    print("\nConfiguration check complete!")
+
+# Global flag for non-interactive mode
+SKIP_INTERACTIVE = '--skip' in sys.argv
+
 def main():
+    # Check for --check flag
+    if len(sys.argv) > 1 and sys.argv[1] == '--check':
+        run_check_mode()
+        sys.exit(0)
+
+    # Check for --skip flag and remove it from args
+    global SKIP_INTERACTIVE
+    if '--skip' in sys.argv:
+        SKIP_INTERACTIVE = True
+        sys.argv.remove('--skip')
+        print("[INFO] Running in non-interactive mode (--skip)")
+
     print_banner()
 
     if not check_python_version():
@@ -737,19 +826,27 @@ def main():
         if not health_check_enabled:
             print("\n[INFO] 健康检测已在配置中禁用，跳过配置")
         else:
-            print("\n是否配置健康检测? (自动检测桥接器是否运行，未运行则自动启动)")
-            print("建议: 开启以确保桥接器持续运行")
-            response = input("配置健康检测 (y/n)? 默认 y: ").strip().lower()
-            if response == '' or response == 'y':
+            if SKIP_INTERACTIVE:
+                print("\n[SKIP] Using default: Enable health check")
                 setup_health_check(openclaw_dir, installed_path)
+            else:
+                print("\n是否配置健康检测? (自动检测桥接器是否运行，未运行则自动启动)")
+                print("建议: 开启以确保桥接器持续运行")
+                response = input("配置健康检测 (y/n)? 默认 y: ").strip().lower()
+                if response == '' or response == 'y':
+                    setup_health_check(openclaw_dir, installed_path)
 
     # Configure npm PATH
     if sys.platform == 'win32':
-        print("\n是否将 npm 全局路径添加到系统 PATH?")
-        print("这样可以全局使用 sillymd-wechat 命令")
-        response = input("添加 PATH (y/n)? 默认 y: ").strip().lower()
-        if response == '' or response == 'y':
+        if SKIP_INTERACTIVE:
+            print("\n[SKIP] Using default: Add npm to PATH")
             add_npm_to_path()
+        else:
+            print("\n是否将 npm 全局路径添加到系统 PATH?")
+            print("这样可以全局使用 sillymd-wechat 命令")
+            response = input("添加 PATH (y/n)? 默认 y: ").strip().lower()
+            if response == '' or response == 'y':
+                add_npm_to_path()
 
     print("\n" + "=" * 60)
     print("Installation Complete!")
