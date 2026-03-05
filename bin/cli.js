@@ -69,7 +69,7 @@ function runInstallCheck() {
 function installDeps() {
     console.log('[INFO] Installing Python dependencies...');
     try {
-        execSync('python install.py', {
+        execSync('python install.py --skip', {
             cwd: PLUGIN_DIR,
             stdio: 'inherit'
         });
